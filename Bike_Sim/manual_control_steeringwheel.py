@@ -21,6 +21,9 @@ To find out the values of your steering wheel use jstest-gtk in Ubuntu.
 from __future__ import print_function
 import csv
 from csv import writer
+import matplotlib.pyplot as plt
+import os
+import time
 
 
 # ==============================================================================
@@ -57,6 +60,8 @@ import math
 import random
 import re
 import weakref
+import pandas as pd
+
 
 if sys.version_info >= (3, 0):
 
@@ -196,7 +201,7 @@ class MotorbikeRider:
 
 
 class World(object):
-    def __init__(self, carla_world, hud, actor_filter):
+    def __init__(self, carla_world, hud, actor_filter,log):
         self.world = carla_world
         self.hud = hud
         self.player = None
@@ -211,6 +216,7 @@ class World(object):
         self._actor_filter = actor_filter
         self.restart()
         self.world.on_tick(hud.on_world_tick)
+        self.log = log
 
 
         #south (-19.5, -226.8)
@@ -301,6 +307,9 @@ class World(object):
             self.bicycle.destroy()
         if self.motorbike is not None:
             self.motorbike.destroy()
+        if self.log is not None:
+            self.log.destroy()
+
 
 
 # ==============================================================================
@@ -404,7 +413,7 @@ class DualControl(object):
         if not self._autopilot_enabled:
             if isinstance(self._control, carla.VehicleControl):
                 self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time())
-                self._parse_vehicle_wheel(v)
+                self._parse_vehicle_wheel(v,world)
                 self._control.reverse = self._control.gear < 0
             elif isinstance(self._control, carla.WalkerControl):
                 self._parse_walker_keys(pygame.key.get_pressed(), clock.get_time())
@@ -429,7 +438,7 @@ class DualControl(object):
         self._control.brake = 1.0 if keys[K_DOWN] or keys[K_s] else 0.0
         self._control.hand_brake = keys[K_SPACE]
 
-    def _parse_vehicle_wheel(self,v):
+    def _parse_vehicle_wheel(self,v,world):
         numAxes = self._joystick.get_numaxes()
         jsInputs = [float(self._joystick.get_axis(i)) for i in range(numAxes)]
         # print (jsInputs)
@@ -467,6 +476,22 @@ class DualControl(object):
         # print(f"str(steerCmd) +"," +str(brakeCmd) + "," +str(throttleCmd) {filename}")
         # new_data = {"steerCmd":steerCmd , "brakeCmd": brakeCmd, "throttleCmd":throttleCmd }
         filename = "./example.csv"
+        world.player.apply_control(self._control)
+
+        t = world.player.get_transform()
+        vehicles = world.world.get_actors().filter('vehicle.*')
+        distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
+        vehicles = [(distance(x.get_location()), x) for x in vehicles if x.id != world.player.id]
+        print("######")
+        # if vehicles.type() is not None:
+        print(vehicles[0][0])
+            
+            
+
+
+
+        world.log.log_data(steerCmd=steerCmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=vehicles[0][0], distance2=vehicles[1][0],world = world, increment_tick = True)
+        # pd.DataFrame(columns=['tick', 'data'])
         log_data(filename, steerCmd, brakeCmd, throttleCmd,0)
         # df_new = pd.DataFrame(new_data)
         # steerlog = pd.concat([steerlog, df_new], ignore_index=True)
@@ -581,8 +606,8 @@ class HUD(object):
             distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
             vehicles = [(distance(x.get_location()), x) for x in vehicles if x.id != world.player.id]
             for d, vehicle in sorted(vehicles):
-                if d > 200.0:
-                    break
+                # if d > 200.0:
+                #     break
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
                 self._info_text.append('% 4dm %s' % (d, vehicle_type))
                 print(d)
@@ -932,6 +957,66 @@ def log_data(filename, steer_cmd, brake_cmd, throttle_cmd, distance):
         writer = csv.writer(file)  # Create a csv.writer object
         writer.writerow([steer_cmd, brake_cmd, throttle_cmd,distance])  # Write a row of data
 
+##############################################################################################################################################################
+##############################################################################################################################################################
+class Log:
+    def __init__(self):
+        # Initialize the log with an empty DataFrame and columns
+        self.cols = ['tick','time', 'steerCmd', 'brakeCmd', 'throttleCmd', 'distance1', 'distance2']
+        self.df = pd.DataFrame(columns=self.cols)  # DataFrame with specific columns
+        self.tick = 0  # Set the initial tick to 0
+        self.clock = pygame.time.Clock()
+
+
+    def log_data(self, steerCmd, brakeCmd, throttleCmd, distance1, distance2,world, increment_tick=False):
+        # Create a new row with the provided data and current tick
+        # timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # snapshot = world.get_snapshot()  # Correct call to get snapshot
+        # simulation_time = snapshot.timestamp.elapsed_seconds  # Get elapsed time from simulation start
+        # simulation_time_raw = time.time()  # Use the current time in seconds since the Epoch
+        
+        current_time = datetime.datetime.now()
+
+        # Extract hours, minutes, seconds, and milliseconds
+        hours = current_time.strftime('%H')
+        minutes = current_time.strftime('%M')
+        seconds = current_time.strftime('%S')
+        milliseconds = current_time.microsecond // 1000  # Convert microseconds to milliseconds
+        
+        # Format the time as HH:MM:SS:SSS
+        formatted_time = f"{hours}:{minutes}:{seconds}:{milliseconds:03}"
+        
+
+        # print('sim_time - ')
+        # print(simulation_time)
+        # print(self.clock.get_time())
+        new_data = {
+            'tick': self.tick,
+            'time': formatted_time,
+            'steerCmd': steerCmd,
+            'brakeCmd': brakeCmd,
+            'throttleCmd': throttleCmd,
+            'distance1': distance1,
+            'distance2': distance2
+        }
+        
+        # Add the new data to the DataFrame
+        self.df = pd.concat([self.df, pd.DataFrame([new_data])], ignore_index=True)
+        
+        # Increment tick if flag is raised
+        if increment_tick:
+            self.tick += 1
+
+    def destroy(self, filename='log.csv'):
+        # Save the log to a CSV file before destroying
+        self.df.to_csv(filename, index=False)
+        print(f"Log saved to {filename}")
+        # self.generate_graph()
+        del self  # Explicitly delete the instance to call destructor
+##############################################################################################################################################################
+##############################################################################################################################################################
+
+
 ############################################################################### to check if logs as expected
 # Initialize log function (call this once before the game loop starts)
 def init_log(log_filename):
@@ -984,8 +1069,9 @@ def game_loop(args):
             pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.RESIZABLE)
 
         hud = HUD(args.width, args.height)
+        log = Log()
 
-        world = World(client.get_world(), hud, args.filter)
+        world = World(client.get_world(), hud, args.filter, log)
         controller = DualControl(world, args.autopilot,writer)
         clock = pygame.time.Clock()
         while True:
