@@ -344,7 +344,7 @@ class DualControl(object):
 
         self._parser = ConfigParser()
         self._parser.read(r'C:\Users\CARLA-1\Desktop\project\carla\WindowsNoEditor\PythonAPI\examples\wheel_config.ini')
-        print("sections: ",self._parser.sections())
+        # print("sections: ",self._parser.sections())
         self._steer_idx = int(
             self._parser.get('G920 Racing Wheel', 'steering_wheel'))
         self._throttle_idx = int(
@@ -450,7 +450,10 @@ class DualControl(object):
         # For the steering, it seems fine as it is
         K1 =  3 # orig = 1 TODO steering coefficient, decide optimum
         steerCmd = K1 * math.tan(1.1 * jsInputs[self._steer_idx])
+        # print(jsInputs[self._steer_idx])
+        new_steer_cmd = map_steering_input_to_degrees(jsInputs[self._steer_idx])
 
+        print(new_steer_cmd)
         K2 = 1.6  # orig =  1.6 - TODO throttle shift value
         throttleCmd = K2 + (2.05 * math.log10(
             -0.7 * jsInputs[self._throttle_idx] + 1.4) - 1.2) / 0.92
@@ -472,8 +475,6 @@ class DualControl(object):
         self._control.steer = steerCmd
         self._control.brake = brakeCmd
         self._control.throttle = throttleCmd
-        # print(str(steerCmd) +"," +str(brakeCmd) + "," +str(throttleCmd))
-        # print(f"str(steerCmd) +"," +str(brakeCmd) + "," +str(throttleCmd) {filename}")
         # new_data = {"steerCmd":steerCmd , "brakeCmd": brakeCmd, "throttleCmd":throttleCmd }
         filename = "./example.csv"
         world.player.apply_control(self._control)
@@ -482,15 +483,12 @@ class DualControl(object):
         vehicles = world.world.get_actors().filter('vehicle.*')
         distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
         vehicles = [(distance(x.get_location()), x) for x in vehicles if x.id != world.player.id]
-        print("######")
-        # if vehicles.type() is not None:
-        print(vehicles[0][0])
             
             
 
 
 
-        world.log.log_data(steerCmd=steerCmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=vehicles[0][0], distance2=vehicles[1][0],world = world, increment_tick = True)
+        world.log.log_data(steerCmd=new_steer_cmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=vehicles[0][0], distance2=vehicles[1][0],world = world, increment_tick = True)
         # pd.DataFrame(columns=['tick', 'data'])
         log_data(filename, steerCmd, brakeCmd, throttleCmd,0)
         # df_new = pd.DataFrame(new_data)
@@ -610,7 +608,6 @@ class HUD(object):
                 #     break
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
                 self._info_text.append('% 4dm %s' % (d, vehicle_type))
-                print(d)
                 log_data("./example.csv", 0, 0, 0, d)
 
 
@@ -987,9 +984,6 @@ class Log:
         formatted_time = f"{hours}:{minutes}:{seconds}:{milliseconds:03}"
         
 
-        # print('sim_time - ')
-        # print(simulation_time)
-        # print(self.clock.get_time())
         new_data = {
             'tick': self.tick,
             'time': formatted_time,
@@ -1042,8 +1036,17 @@ def log_telemetry(writer, vehicle):
         'throttleCmd': control.throttle,
         'Heading': heading
     })
-################################################################################ up to here
-#### test change for commit
+
+def map_steering_input_to_degrees(x):
+    # Ensure x is between -1 and 1
+    if x < -1 or x > 1:
+        raise ValueError("Input must be between -1 and 1")
+
+    # Convert x from range [-1, 1] to range [-225, 225]
+    return (x * 225)
+
+
+
 
 # ==============================================================================
 # -- game_loop() ---------------------------------------------------------------
@@ -1147,7 +1150,7 @@ def main():
     args = argparser.parse_args()
 
     args.width, args.height = [int(x) for x in args.res.split('x')]
-    print(args.res.split('x'))
+    # print(args.res.split('x'))
 
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(format='%(levelname)s: %(message)s', level=log_level)
