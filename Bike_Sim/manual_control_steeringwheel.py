@@ -145,7 +145,7 @@ class BicycleRider:
         self.world = world
         self.spawn_point = spawn_point
         self.bicycle = None
-        # self.spawn_bicycle()
+        self.spawn_bicycle()
 
     def spawn_bicycle(self):
         # Define the blueprint for a bicycle; update this according to your specific blueprint
@@ -171,7 +171,7 @@ class MotorbikeRider:
         self.world = world
         self.spawn_point = spawn_point
         self.motorbike = None
-        # self.spawn_motorbike()
+        self.spawn_motorbike()
 
     def spawn_motorbike(self):
         # Define the blueprint for a motorbike; update this according to your specific blueprint
@@ -345,7 +345,7 @@ class DualControl(object):
         self._handbrake_idx = int(
             self._parser.get('G920 Racing Wheel', 'handbrake'))
 
-    def parse_events(self, world, clock):
+    def parse_events(self, world, clock,v):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return True
@@ -404,7 +404,7 @@ class DualControl(object):
         if not self._autopilot_enabled:
             if isinstance(self._control, carla.VehicleControl):
                 self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time())
-                self._parse_vehicle_wheel()
+                self._parse_vehicle_wheel(v)
                 self._control.reverse = self._control.gear < 0
             elif isinstance(self._control, carla.WalkerControl):
                 self._parse_walker_keys(pygame.key.get_pressed(), clock.get_time())
@@ -429,7 +429,7 @@ class DualControl(object):
         self._control.brake = 1.0 if keys[K_DOWN] or keys[K_s] else 0.0
         self._control.hand_brake = keys[K_SPACE]
 
-    def _parse_vehicle_wheel(self):
+    def _parse_vehicle_wheel(self,v):
         numAxes = self._joystick.get_numaxes()
         jsInputs = [float(self._joystick.get_axis(i)) for i in range(numAxes)]
         # print (jsInputs)
@@ -447,7 +447,8 @@ class DualControl(object):
             -0.7 * jsInputs[self._throttle_idx] + 1.4) - 1.2) / 0.92
         # print("Throtle: " +str(throttleCmd))
 
-        if throttleCmd <= 0:
+        speed = (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2))
+        if throttleCmd <= 0 or speed > 80: # change speed limit
             throttleCmd = 0
         elif throttleCmd > 1:
             throttleCmd = 1
@@ -828,7 +829,8 @@ class CameraManager(object):
         self.hud = hud
         self.recording = False
         self._camera_transforms = [
-            carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
+            # carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
+            carla.Transform(carla.Location(x=-0.15,y=-0.4, z=1.2), carla.Rotation()),   # change camera position
             carla.Transform(carla.Location(x=1.6, z=1.7))]
         self.transform_index = 1
         self.sensors = [
@@ -930,7 +932,7 @@ def log_data(filename, steer_cmd, brake_cmd, throttle_cmd, distance):
         writer = csv.writer(file)  # Create a csv.writer object
         writer.writerow([steer_cmd, brake_cmd, throttle_cmd,distance])  # Write a row of data
 
-################################################################################ to check if logs as expected
+############################################################################### to check if logs as expected
 # Initialize log function (call this once before the game loop starts)
 def init_log(log_filename):
     # Open CSV file and create writer object
@@ -989,21 +991,22 @@ def game_loop(args):
         while True:
             
             clock.tick_busy_loop(60)
-            if controller.parse_events(world, clock):
+            v = world.player.get_velocity()
+            if controller.parse_events(world, clock,v):
                 return
             world.tick(clock)
             
         ###################################################################################################################### 
-            vehicle_t = world.player
-            # Calculate distance to other vehicles
-            vehicles = world.world.get_actors().filter('vehicle.*')
-            if len(vehicles) > 1:
-                distance_func = lambda l: math.sqrt((l.x - transform.location.x)**2 + (l.y - transform.location.y)**2 + (l.z - transform.location.z)**2)
-                nearby_vehicles = [(distance_func(v.get_location()), v) for v in vehicles if v.id != vehicle.id]
-                nearest_distance = sorted(nearby_vehicles)[0][0] if nearby_vehicles else 0
-            else:
-                nearest_distance = 0
-            log_telemetry(writer, vehicle_t)
+            # vehicle_t = world.player
+            # # Calculate distance to other vehicles
+            # vehicles = world.world.get_actors().filter('vehicle.*')
+            # if len(vehicles) > 1:
+            #     distance_func = lambda l: math.sqrt((l.x - transform.location.x)**2 + (l.y - transform.location.y)**2 + (l.z - transform.location.z)**2)
+            #     nearby_vehicles = [(distance_func(v.get_location()), v) for v in vehicles if v.id != vehicle.id]
+            #     nearest_distance = sorted(nearby_vehicles)[0][0] if nearby_vehicles else 0
+            # else:
+            #     nearest_distance = 0
+            # log_telemetry(writer, vehicle_t)
         #######################################################################################################################
         
             world.render(display)
@@ -1053,7 +1056,7 @@ def main():
     argparser.add_argument(
         '--filter',
         metavar='PATTERN',
-        default='vehicle.*',
+        default='vehicle.nissan.micra',
         help='actor filter (default: "vehicle.nissan.*")')
     args = argparser.parse_args()
 
