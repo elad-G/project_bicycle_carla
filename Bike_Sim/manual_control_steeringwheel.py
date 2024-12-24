@@ -290,6 +290,7 @@ class World(object):
     def render(self, display):
         self.camera_manager.render(display)
         self.hud.render(display)
+        
 
     def destroy(self):
         sensors = [
@@ -851,93 +852,108 @@ class CameraManager(object):
         self.hud = hud
         self.recording = False
         self._camera_transforms = [
-            # carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
-            carla.Transform(carla.Location(x=-0.15,y=-0.4, z=1.2), carla.Rotation()),   # change camera position
-            carla.Transform(carla.Location(x=1.6, z=1.7))]
-        self.transform_index = 1
+            carla.Transform(carla.Location(x=-0.2,y=-0.2, z=1.3), carla.Rotation(yaw=0)),  # Main front view
+            carla.Transform(carla.Location(x=-0.15, y=-0.4, z=1.2), carla.Rotation()),  # Close view
+            carla.Transform(carla.Location(x=-0.15, y=-1.2, z=1.5), carla.Rotation(yaw=-165)),  # Left mirror view
+            # carla.Transform(carla.Location(x=-0.15, y=1.2, z=1.7), carla.Rotation(yaw=160)),   # Right mirror view
+            carla.Transform(carla.Location(x=-1.2, y=0, z=1.4), carla.Rotation(yaw=180,pitch=-15))       # Rear mirror view
+            
+        ]
         self.sensors = [
             ['sensor.camera.rgb', cc.Raw, 'Camera RGB'],
-            ['sensor.camera.depth', cc.Raw, 'Camera Depth (Raw)'],
-            ['sensor.camera.depth', cc.Depth, 'Camera Depth (Gray Scale)'],
-            ['sensor.camera.depth', cc.LogarithmicDepth, 'Camera Depth (Logarithmic Gray Scale)'],
-            ['sensor.camera.semantic_segmentation', cc.Raw, 'Camera Semantic Segmentation (Raw)'],
-            ['sensor.camera.semantic_segmentation', cc.CityScapesPalette,
-                'Camera Semantic Segmentation (CityScapes Palette)'],
-            ['sensor.lidar.ray_cast', None, 'Lidar (Ray-Cast)']]
+        ]
         world = self._parent.get_world()
         bp_library = world.get_blueprint_library()
+        self.sensor_blueprints = []
+
+        # Create blueprints for all sensors
         for item in self.sensors:
             bp = bp_library.find(item[0])
-            if item[0].startswith('sensor.camera'):
-                bp.set_attribute('image_size_x', str(hud.dim[0]))
-                bp.set_attribute('image_size_y', str(hud.dim[1]))
-            elif item[0].startswith('sensor.lidar'):
-                bp.set_attribute('range', '50')
+            bp.set_attribute('image_size_x', str(hud.dim[0]))
+            bp.set_attribute('image_size_y', str(hud.dim[1]))
             item.append(bp)
-        self.index = None
+            self.sensor_blueprints.append(bp)
 
-    def toggle_camera(self):
-        self.transform_index = (self.transform_index + 1) % len(self._camera_transforms)
-        self.sensor.set_transform(self._camera_transforms[self.transform_index])
+        self.index = None
+        self.left_camera = None
+        # self.right_camera = None
+        self.rear_camera = None
+        self.left_surface = None
+        # self.right_surface = None
+        self.rear_surface = None
 
     def set_sensor(self, index, notify=True):
         index = index % len(self.sensors)
-        needs_respawn = True if self.index is None \
-            else self.sensors[index][0] != self.sensors[self.index][0]
+        needs_respawn = True if self.index is None else self.sensors[index][0] != self.sensors[self.index][0]
         if needs_respawn:
             if self.sensor is not None:
                 self.sensor.destroy()
                 self.surface = None
             self.sensor = self._parent.get_world().spawn_actor(
                 self.sensors[index][-1],
-                self._camera_transforms[self.transform_index],
+                self._camera_transforms[0],
                 attach_to=self._parent)
-            # We need to pass the lambda a weak reference to self to avoid
-            # circular reference.
             weak_self = weakref.ref(self)
             self.sensor.listen(lambda image: CameraManager._parse_image(weak_self, image))
         if notify:
             self.hud.notification(self.sensors[index][2])
         self.index = index
 
-    def next_sensor(self):
-        self.set_sensor(self.index + 1)
+        # Set up additional cameras
+        self.left_camera = self._parent.get_world().spawn_actor(
+            self.sensor_blueprints[0], self._camera_transforms[2], attach_to=self._parent)
+        # self.right_camera = self._parent.get_world().spawn_actor(
+        #     self.sensor_blueprints[0], self._camera_transforms[3], attach_to=self._parent)
+        self.rear_camera = self._parent.get_world().spawn_actor(
+            self.sensor_blueprints[0], self._camera_transforms[3], attach_to=self._parent)
 
-    def toggle_recording(self):
-        self.recording = not self.recording
-        self.hud.notification('Recording %s' % ('On' if self.recording else 'Off'))
+        self.left_camera.listen(lambda image: CameraManager._parse_side_image(weak_self, image, 'left'))
+        # self.right_camera.listen(lambda image: CameraManager._parse_side_image(weak_self, image, 'right'))
+        self.rear_camera.listen(lambda image: CameraManager._parse_side_image(weak_self, image, 'rear'))
 
     def render(self, display):
         if self.surface is not None:
-            display.blit(self.surface, (0, 0))
+            display.blit(self.surface, (0, 0))  # Main camera view
+        if self.left_surface is not None:
+            mirrored_left = pygame.transform.flip(self.left_surface, True, False)  # Flip horizontally
+            display.blit(mirrored_left, (10, 800))  # Bottom-left corner
+        # if self.right_surface is not None:
+        #     display.blit(self.right_surface, (self.hud.dim[0] - 250, self.hud.dim[1] - 150))  # Bottom-right corner
+        if self.rear_surface is not None:
+            mirrored_rear = pygame.transform.flip(self.rear_surface, True, False)  # Flip horizontally
+            display.blit(mirrored_rear, (1200, 325))  # Center-bottom
+
+
 
     @staticmethod
     def _parse_image(weak_self, image):
         self = weak_self()
         if not self:
             return
-        if self.sensors[self.index][0].startswith('sensor.lidar'):
-            points = np.frombuffer(image.raw_data, dtype=np.dtype('f4'))
-            points = np.reshape(points, (int(points.shape[0] / 4), 4))
-            lidar_data = np.array(points[:, :2])
-            lidar_data *= min(self.hud.dim) / 100.0
-            lidar_data += (0.5 * self.hud.dim[0], 0.5 * self.hud.dim[1])
-            lidar_data = np.fabs(lidar_data) # pylint: disable=E1111
-            lidar_data = lidar_data.astype(np.int32)
-            lidar_data = np.reshape(lidar_data, (-1, 2))
-            lidar_img_size = (self.hud.dim[0], self.hud.dim[1], 3)
-            lidar_img = np.zeros(lidar_img_size)
-            lidar_img[tuple(lidar_data.T)] = (255, 255, 255)
-            self.surface = pygame.surfarray.make_surface(lidar_img)
-        else:
-            image.convert(self.sensors[self.index][1])
-            array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-            array = np.reshape(array, (image.height, image.width, 4))
-            array = array[:, :, :3]
-            array = array[:, :, ::-1]
-            self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
-        if self.recording:
-            image.save_to_disk('_out/%08d' % image.frame)
+        image.convert(cc.Raw)
+        array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
+        array = np.reshape(array, (image.height, image.width, 4))
+        array = array[:, :, :3]
+        array = array[:, :, ::-1]
+        self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+
+    @staticmethod
+    def _parse_side_image(weak_self, image, position):
+        self = weak_self()
+        if not self:
+            return
+        image.convert(cc.Raw)
+        array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
+        array = np.reshape(array, (image.height, image.width, 4))
+        array = array[:, :, :3]
+        array = array[:, :, ::-1]
+        surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+        if position == 'left':
+            self.left_surface = pygame.transform.scale(surface, (300, 200))
+        # elif position == 'right':
+        #     self.right_surface = pygame.transform.scale(surface, (300, 200))
+        elif position == 'rear':
+            self.rear_surface = pygame.transform.scale(surface, (500, 120))
 
 
 
@@ -1066,6 +1082,7 @@ def game_loop(args):
     try:
         client = carla.Client(args.host, args.port)
         client.set_timeout(10.0)
+        print(client.get_available_maps())
 
         display = pygame.display.set_mode(
             (args.width, args.height),
@@ -1075,8 +1092,10 @@ def game_loop(args):
         log = Log()
 
         world = World(client.get_world(), hud, args.filter, log)
+        # world = client.load_world('Town12')
         controller = DualControl(world, args.autopilot,writer)
         clock = pygame.time.Clock()
+        
         while True:
             
             clock.tick_busy_loop(60)
