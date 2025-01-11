@@ -144,55 +144,197 @@ finish point:
 # ==============================================================================
 # -- BicycleRider Class -------------------------------------------------------
 # ==============================================================================
-
 class BicycleRider:
-    def __init__(self, world, spawn_point):
+    def __init__(self, world, traffic_manager, spawn_point):
+        print("BicycleRider init")
         self.world = world
+        self.traffic_manager = traffic_manager
         self.spawn_point = spawn_point
-        self.bicycle = None
+        self.actor = None
         self.spawn_bicycle()
 
     def spawn_bicycle(self):
-        # Define the blueprint for a bicycle; update this according to your specific blueprint
+        """Spawn the bicycle and configure its behavior."""
+        # Define the blueprint for a bicycle
         blueprint = self.world.get_blueprint_library().find('vehicle.diamondback.century')
-        blueprint.set_attribute('color', '255, 234, 0')
         if not blueprint:
             raise RuntimeError('Bicycle blueprint not found!')
+        
+        # Set attributes like color
+        blueprint.set_attribute('color', '255, 234, 0')
 
         # Spawn the bicycle at the specified location
-        self.bicycle = self.world.spawn_actor(blueprint, self.spawn_point)
-        self.bicycle.set_autopilot(True)  # Optionally enable autopilot
+        self.actor = self.world.try_spawn_actor(blueprint, self.spawn_point)
+        if self.actor:
+            print(f"Bicycle spawned with ID: {self.actor.id}")
+            self.configure_behavior()
+        else:
+            print("Failed to spawn bicycle.")
+
+    def configure_behavior(self,change_lane=False,speed_percentage=50):
+        """Configure traffic manager behavior for the bicycle."""
+        if not self.actor:
+            print("No actor to configure.")
+            return
+
+        # Disable lane changes
+        self.traffic_manager.auto_lane_change(self.actor, change_lane)
+
+        self.traffic_manager.vehicle_percentage_speed_difference(self.actor, speed_percentage)
+
+        # Enable autopilot and set the speed
+        self.actor.set_autopilot(True, self.traffic_manager.get_port())
+        print(f"Bicycle {self.actor.id} configured with autopilot and custom behavior.")
+
+    def set_target_velocity(self, velocity):
+        """Set a custom target velocity for the bicycle."""
+        if self.actor:
+            self.actor.set_target_velocity(carla.Vector3D(x=velocity, y=0.0, z=0.0))
+            print(f"Bicycle velocity set to {velocity} m/s.")
+
+    def get_location(self):
+        """Get the current location of the bicycle."""
+        if self.actor:
+            return self.actor.get_location()
+        return None
 
     def destroy(self):
-        if self.bicycle:
-            self.bicycle.destroy()
+        """Destroy the actor."""
+        print("Destroying bicycle.")
+        if self.actor:
+            print(f"Destroying bicycle with ID: {self.actor.id}")
+            self.actor.destroy()
+            self.actor = None
+
+
+# class BicycleRider:
+#     def __init__(self, world, spawn_point):
+#         self.world = world
+#         self.spawn_point = spawn_point
+#         self.actor = None
+#         self.spawn_bicycle()
+
+#     def spawn_bicycle(self):
+#         # Define the blueprint for a bicycle; update this according to your specific blueprint
+#         blueprint = self.world.get_blueprint_library().find('vehicle.diamondback.century')
+#         blueprint.set_attribute('color', '255, 234, 0')
+#         if not blueprint:
+#             raise RuntimeError('Bicycle blueprint not found!')
+
+#         # Spawn the bicycle at the specified location
+#         self.actor = self.world.spawn_actor(blueprint, self.spawn_point)
+#         # self.bicycle.apply_control(carla.VehicleControl(throttle = 0, brake = 1))
+#         self.actor.set_autopilot(True)  # Optionally enable autopilot
+#         self.actor.set_target_velocity(25)
+
+#     def destroy(self):
+#         if self.actor:
+#             self.actor.destroy()
 
 # ==============================================================================
 # -- MotorbikeRider Class -------------------------------------------------------
 # ==============================================================================
-
 class MotorbikeRider:
-    def __init__(self, world, spawn_point):
+    def __init__(self, world, traffic_manager, spawn_point):
+        print("MotorbikeRider init")
         self.world = world
+        self.traffic_manager = traffic_manager
         self.spawn_point = spawn_point
-        self.motorbike = None
+        self.actor = None
         self.spawn_motorbike()
 
     def spawn_motorbike(self):
-        # Define the blueprint for a motorbike; update this according to your specific blueprint
+        """Spawn the motorbike and configure its behavior."""
+        # Define the blueprint for a motorbike
         blueprint = self.world.get_blueprint_library().find('vehicle.kawasaki.ninja')
-        # self.motorbike.set_attribute('color', '255, 234, 0')
         if not blueprint:
             raise RuntimeError('Motorbike blueprint not found!')
+        
+        # Set attributes like color if applicable
+        blueprint.set_attribute('color', '255, 0, 0')  # Example color setting
 
         # Spawn the motorbike at the specified location
-        self.motorbike = self.world.spawn_actor(blueprint, self.spawn_point)
-        self.motorbike.set_autopilot(True)  # Optionally enable autopilot
+        self.actor = self.world.try_spawn_actor(blueprint, self.spawn_point)
+        if self.actor:
+            print(f"Motorbike spawned with ID: {self.actor.id}")
+            self.configure_behavior()
+        else:
+            print("Failed to spawn motorbike.")
 
+    def configure_behavior(self,change_lane=False,speed_percentage=50):
+        """Configure traffic manager behavior for the motorbike."""
+        if not self.actor:
+            print("No actor to configure.")
+            return
+
+        # Disable lane changes
+        self.traffic_manager.auto_lane_change(self.actor, change_lane)
+
+        # Set a speed limit (e.g., 20% below default speed)
+        self.traffic_manager.vehicle_percentage_speed_difference(self.actor, speed_percentage)
+
+        # Enable autopilot and configure behavior
+        self.actor.set_autopilot(True, self.traffic_manager.get_port())
+        print(f"Motorbike {self.actor.id} configured with autopilot and custom behavior.")
+
+    def set_target_velocity(self, velocity):
+        """Set a custom target velocity for the motorbike."""
+        if self.actor:
+            self.actor.set_target_velocity(carla.Vector3D(x=velocity, y=0.0, z=0.0))
+            print(f"Motorbike velocity set to {velocity} m/s.")
+
+    def set_heading(self, yaw):
+        """Set the heading (yaw) of the motorbike."""
+        if not self.actor:
+            print("No actor to set heading.")
+            return
+
+        # Get current transform and update yaw
+        transform = self.actor.get_transform()
+        transform.rotation.yaw = yaw  # Set the yaw (heading) in degrees
+        self.actor.set_transform(transform)
+        print(f"Motorbike heading set to {yaw} degrees.")
+
+    def get_location(self):
+        """Get the current location of the motorbike."""
+        if self.actor:
+            return self.actor.get_location()
+        return None
 
     def destroy(self):
-        if self.motorbike:
-            self.motorbike.destroy()
+        """Destroy the actor."""
+        print("Destroying motorbike.")
+        if self.actor:
+            print(f"Destroying motorbike with ID: {self.actor.id}")
+            self.actor.destroy()
+            self.actor = None
+
+
+# class MotorbikeRider:
+#     def __init__(self, world, spawn_point):
+#         print("MotorbikeRider init")
+#         self.world = world
+#         self.spawn_point = spawn_point
+#         self.actor = None
+#         self.spawn_motorbike()
+
+#     def spawn_motorbike(self):
+#         # Define the blueprint for a motorbike; update this according to your specific blueprint
+#         blueprint = self.world.get_blueprint_library().find('vehicle.kawasaki.ninja')
+#         # self.motorbike.set_attribute('color', '255, 234, 0')
+#         if not blueprint:
+#             raise RuntimeError('Motorbike blueprint not found!')
+
+#         # Spawn the motorbike at the specified location
+#         self.actor = self.world.spawn_actor(blueprint, self.spawn_point)
+#         self.actor.set_autopilot(True)  # Optionally enable autopilot
+        
+
+
+#     def destroy(self):
+#         if self.actor:
+#             print(f"Destroying motorbike with ID: {self.actor.id}")
+#             self.actor.destroy()
 
 
 # ==============================================================================
@@ -201,8 +343,11 @@ class MotorbikeRider:
 
 
 class World(object):
-    def __init__(self, carla_world, hud, actor_filter,log):
+    def __init__(self, carla_world, hud, actor_filter,log,client):
+        print("World init")
         self.world = carla_world
+        self.client = client
+        self.traffic_manager = self.client.get_trafficmanager()
         self.hud = hud
         self.player = None
         self.bicycle = None
@@ -217,7 +362,6 @@ class World(object):
         self.restart()
         self.world.on_tick(hud.on_world_tick)
         self.log = log
-
 
         #south (-19.5, -226.8)
 
@@ -236,24 +380,25 @@ class World(object):
         #spwan bicycle rider
         if self.bicycle is not None:
             # spawn_point = self.bicycle.get_transform()
-            spawn_point_bicycle = carla.Transform(carla.Location(x=-19.5, y=-226.8, z=40))
+            spawn_point_bicycle = carla.Transform(carla.Location(x=-271.1, y=37.1, z=2),carla.Rotation(yaw=0))
             self.destroy()
-            self.bicycle = self.world.try_spawn_actor(blueprint, spawn_point_bicycle)
+            self.bicycle.actor = self.world.try_spawn_actor(blueprint, spawn_point_bicycle)
         while self.bicycle is None:
             # spawn_points = self.world.get_map().get_spawn_points()
-            spawn_point_bicycle = carla.Transform(carla.Location(x=-19.5, y=-226.8, z=40))
-            self.bicycle = BicycleRider(self.world, spawn_point_bicycle)
+            spawn_point_bicycle = carla.Transform(carla.Location(x=-271.1, y=37.1, z=2),carla.Rotation(yaw=0))
+            self.bicycle = BicycleRider(self.world,self.traffic_manager, spawn_point_bicycle)
 
         #spwan motorbike rider
         if self.motorbike is not None:
             # spawn_point = self.motorbike.get_transform()
-            spawn_point_motorbike = carla.Transform(carla.Location(x=-16.3, y=-51, z=40))
+            spawn_point_motorbike = carla.Transform(carla.Location(x=-67.2, y=37.3, z=13),carla.Rotation(yaw=0))
+            spawn_point_motorbike.location.z = self.world.get_map().get_spawn_points()[0].location.z
             self.destroy()
-            self.motorbike = self.world.try_spawn_actor(blueprint, spawn_point_motorbike)
+            self.motorbike.actor = self.world.try_spawn_actor(blueprint, spawn_point_motorbike)
         while self.motorbike is None:
             # spawn_points = self.world.get_map().get_spawn_points()
-            spawn_point_motorbike = carla.Transform(carla.Location(x=-16.3, y=-51, z=40))
-            self.motorbike = MotorbikeRider(self.world, spawn_point_motorbike)
+            spawn_point_motorbike = carla.Transform(carla.Location(x=-67.2, y=37.3, z=13),carla.Rotation(yaw=0))
+            self.motorbike = MotorbikeRider(self.world,self.traffic_manager, spawn_point_motorbike)
 
         # Spawn the player.
         if self.player is not None:
@@ -261,11 +406,12 @@ class World(object):
             spawn_point.location.z += 2.0
             spawn_point.rotation.roll = 10
             spawn_point.rotation.pitch = 10
+            spawn_point.rotation.yaw = 180
             self.destroy()
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
         while self.player is None:
             # spawn_points = self.world.get_map().get_spawn_points()
-            spawn_point = carla.Transform(carla.Location(x=75, y=-370, z=2))
+            spawn_point = carla.Transform(carla.Location(x=-433.9, y=34.9, z=2),carla.Rotation(yaw=0))
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
         # Set up the sensors.
         self.collision_sensor = CollisionSensor(self.player, self.hud)
@@ -286,6 +432,20 @@ class World(object):
 
     def tick(self, clock):
         self.hud.tick(self, clock)
+        #    def configure_behavior(self,change_lane=False,speed_percentage=50):
+        player_loc =self.player.get_location()
+        bicycle_loc =self.bicycle.actor.get_location()
+        motorbike_loc =self.motorbike.actor.get_location()
+        if(calculate_distance(player_loc,bicycle_loc) > 100):
+            self.bicycle.set_target_velocity(0)
+        else:
+            self.motorbike.configure_behavior(change_lane=True,speed_percentage=20)
+        if(calculate_distance(player_loc,motorbike_loc) > 100):
+            self.motorbike.set_target_velocity(0)
+        else:
+            self.motorbike.configure_behavior(change_lane=True,speed_percentage=20)
+
+
 
     def render(self, display):
         self.camera_manager.render(display)
@@ -293,6 +453,7 @@ class World(object):
         
 
     def destroy(self):
+        print("Destroying world")
         sensors = [
             self.camera_manager.sensor,
             self.collision_sensor.sensor,
@@ -320,6 +481,7 @@ class World(object):
 
 class DualControl(object):
     def __init__(self, world, start_in_autopilot,writer):
+        print("DualControl init")
         self._autopilot_enabled = start_in_autopilot
         if isinstance(world.player, carla.Vehicle):
             self._control = carla.VehicleControl()
@@ -454,7 +616,7 @@ class DualControl(object):
         # print(jsInputs[self._steer_idx])
         new_steer_cmd = map_steering_input_to_degrees(jsInputs[self._steer_idx])
 
-        print(new_steer_cmd)
+        # print(new_steer_cmd)
         K2 = 1.6  # orig =  1.6 - TODO throttle shift value
         throttleCmd = K2 + (2.05 * math.log10(
             -0.7 * jsInputs[self._throttle_idx] + 1.4) - 1.2) / 0.92
@@ -484,6 +646,21 @@ class DualControl(object):
         vehicles = world.world.get_actors().filter('vehicle.*')
         distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
         vehicles = [(distance(x.get_location()), x) for x in vehicles if x.id != world.player.id]
+
+
+        # actors = world.world.get_actors().filter('vehicle.*')
+        # for a in actors:
+        #     if a.id == world.player.id:
+        #         continue
+        #     if calculate_distance(a.get_location(), t.location) > 110:
+        #         a.apply_control(carla.VehicleControl(throttle = 0, brake = 1)) 
+        #         a.set_autopilot(True)  # Optionally enable autopilot
+
+        #     else:
+        #         a.apply_control(carla.VehicleControl(throttle = 1, brake = 0))
+        #         a.set_autopilot(True)  # Optionally enable autopilot
+
+
             
             
 
@@ -846,6 +1023,7 @@ class GnssSensor(object):
 
 class CameraManager(object):
     def __init__(self, parent_actor, hud):
+        print("CameraManager init")
         self.sensor = None
         self.surface = None
         self._parent = parent_actor
@@ -974,6 +1152,7 @@ def log_data(filename, steer_cmd, brake_cmd, throttle_cmd, distance):
 ##############################################################################################################################################################
 class Log:
     def __init__(self):
+        print("Log initialized")
         # Initialize the log with an empty DataFrame and columns
         self.cols = ['tick','time', 'steerCmd', 'brakeCmd', 'throttleCmd', 'distance1', 'distance2']
         self.df = pd.DataFrame(columns=self.cols)  # DataFrame with specific columns
@@ -1018,6 +1197,7 @@ class Log:
             self.tick += 1
 
     def destroy(self, filename='log.csv'):
+        print("Log destroyed")
         # Save the log to a CSV file before destroying
         self.df.to_csv(filename, index=False)
         print(f"Log saved to {filename}")
@@ -1082,7 +1262,7 @@ def game_loop(args):
     try:
         client = carla.Client(args.host, args.port)
         client.set_timeout(10.0)
-        print(client.get_available_maps())
+        # print(client.get_available_maps())
 
         display = pygame.display.set_mode(
             (args.width, args.height),
@@ -1091,8 +1271,8 @@ def game_loop(args):
         hud = HUD(args.width, args.height)
         log = Log()
 
-        world = World(client.get_world(), hud, args.filter, log)
-        # world = client.load_world('Town12')
+        world = World(client.get_world(), hud, args.filter, log,client)
+        # world = client.load_world('Town04')
         controller = DualControl(world, args.autopilot,writer)
         clock = pygame.time.Clock()
         
@@ -1127,6 +1307,13 @@ def game_loop(args):
 
         pygame.quit()
 
+
+
+def calculate_distance(loc1, loc2):
+    dx = loc1.x - loc2.x
+    dy = loc1.y - loc2.y
+    dz = loc1.z - loc2.z
+    return math.sqrt(dx**2 + dy**2 + dz**2)
 
 # ==============================================================================
 # -- main() --------------------------------------------------------------------
