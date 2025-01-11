@@ -184,13 +184,13 @@ class BicycleRider:
 
         # Enable autopilot and set the speed
         self.actor.set_autopilot(True, self.traffic_manager.get_port())
-        print(f"Bicycle {self.actor.id} configured with autopilot and custom behavior.")
+        #print(f"Bicycle {self.actor.id} configured with autopilot and custom behavior.")
 
     def set_target_velocity(self, velocity):
         """Set a custom target velocity for the bicycle."""
         if self.actor:
             self.actor.set_target_velocity(carla.Vector3D(x=velocity, y=0.0, z=0.0))
-            print(f"Bicycle velocity set to {velocity} m/s.")
+            #print(f"Bicycle velocity set to {velocity} m/s.")
 
     def get_location(self):
         """Get the current location of the bicycle."""
@@ -275,13 +275,13 @@ class MotorbikeRider:
 
         # Enable autopilot and configure behavior
         self.actor.set_autopilot(True, self.traffic_manager.get_port())
-        print(f"Motorbike {self.actor.id} configured with autopilot and custom behavior.")
+        #print(f"Motorbike {self.actor.id} configured with autopilot and custom behavior.")
 
     def set_target_velocity(self, velocity):
         """Set a custom target velocity for the motorbike."""
         if self.actor:
             self.actor.set_target_velocity(carla.Vector3D(x=velocity, y=0.0, z=0.0))
-            print(f"Motorbike velocity set to {velocity} m/s.")
+            #print(f"Motorbike velocity set to {velocity} m/s.")
 
     def set_heading(self, yaw):
         """Set the heading (yaw) of the motorbike."""
@@ -309,7 +309,6 @@ class MotorbikeRider:
             self.actor.destroy()
             self.actor = None
 
-
 # class MotorbikeRider:
 #     def __init__(self, world, spawn_point):
 #         print("MotorbikeRider init")
@@ -336,6 +335,83 @@ class MotorbikeRider:
 #             print(f"Destroying motorbike with ID: {self.actor.id}")
 #             self.actor.destroy()
 
+# ==============================================================================
+# -- SmallCar Class -------------------------------------------------------
+# ==============================================================================
+class SmallCar:
+    def __init__(self, world, traffic_manager, spawn_point):
+        print("SmallCar init")
+        self.world = world
+        self.traffic_manager = traffic_manager
+        self.spawn_point = spawn_point
+        self.actor = None
+        self.spawn_smallcar()
+
+    def spawn_smallcar(self):
+        """Spawn the SmallCar and configure its behavior."""
+        # Define the blueprint for a SmallCar
+        blueprint = self.world.get_blueprint_library().find('vehicle.micro.microlino')
+        if not blueprint:
+            raise RuntimeError('SmallCar blueprint not found!')
+        
+        # Set attributes like color if applicable
+        blueprint.set_attribute('color', '255, 0, 0')  # Example color setting
+
+        # Spawn the SmallCar at the specified location
+        self.actor = self.world.try_spawn_actor(blueprint, self.spawn_point)
+        if self.actor:
+            print(f"SmallCar spawned with ID: {self.actor.id}")
+            self.configure_behavior()
+        else:
+            print("Failed to spawn SmallCar.")
+
+    def configure_behavior(self,change_lane=False,speed_percentage=50):
+        """Configure traffic manager behavior for the SmallCar."""
+        if not self.actor:
+            print("No actor to configure.")
+            return
+
+        # Disable lane changes
+        self.traffic_manager.auto_lane_change(self.actor, change_lane)
+
+        # Set a speed limit (e.g., 20% below default speed)
+        self.traffic_manager.vehicle_percentage_speed_difference(self.actor, speed_percentage)
+
+        # Enable autopilot and configure behavior
+        self.actor.set_autopilot(True, self.traffic_manager.get_port())
+        #print(f"SmallCar {self.actor.id} configured with autopilot and custom behavior.")
+
+    def set_target_velocity(self, velocity):
+        """Set a custom target velocity for the motorbike."""
+        if self.actor:
+            self.actor.set_target_velocity(carla.Vector3D(x=velocity, y=0.0, z=0.0))
+            #print(f"SmallCar velocity set to {velocity} m/s.")
+
+    def set_heading(self, yaw):
+        """Set the heading (yaw) of the SmallCar."""
+        if not self.actor:
+            print("No actor to set heading.")
+            return
+
+        # Get current transform and update yaw
+        transform = self.actor.get_transform()
+        transform.rotation.yaw = yaw  # Set the yaw (heading) in degrees
+        self.actor.set_transform(transform)
+        print(f"SmallCar heading set to {yaw} degrees.")
+
+    def get_location(self):
+        """Get the current location of the SmallCar."""
+        if self.actor:
+            return self.actor.get_location()
+        return None
+
+    def destroy(self):
+        """Destroy the actor."""
+        print("Destroying SmallCar.")
+        if self.actor:
+            print(f"Destroying SmallCar with ID: {self.actor.id}")
+            self.actor.destroy()
+            self.actor = None
 
 # ==============================================================================
 # -- World ---------------------------------------------------------------------
@@ -352,6 +428,7 @@ class World(object):
         self.player = None
         self.bicycle = None
         self.motorbike = None
+        self.smallcar = None
         self.collision_sensor = None
         self.lane_invasion_sensor = None
         self.gnss_sensor = None
@@ -400,6 +477,20 @@ class World(object):
             spawn_point_motorbike = carla.Transform(carla.Location(x=-67.2, y=37.3, z=13),carla.Rotation(yaw=0))
             self.motorbike = MotorbikeRider(self.world,self.traffic_manager, spawn_point_motorbike)
 
+
+        #spwan smallcar rider
+        if self.smallcar is not None:
+            # spawn_point = self.motorbike.get_transform()
+            spawn_point_smallcar = carla.Transform(carla.Location(x=147.2, y=38.6, z=10),carla.Rotation(yaw=0))
+            spawn_point_smallcar.location.z = self.world.get_map().get_spawn_points()[0].location.z
+            self.destroy()
+            self.smallcar.actor = self.world.try_spawn_actor(blueprint, spawn_point_smallcar)
+        while self.smallcar is None:
+            # spawn_points = self.world.get_map().get_spawn_points()
+            spawn_point_smallcar = carla.Transform(carla.Location(x=147.2, y=38.6, z=10),carla.Rotation(yaw=0))
+            self.smallcar = SmallCar(self.world,self.traffic_manager, spawn_point_smallcar)
+
+
         # Spawn the player.
         if self.player is not None:
             spawn_point = self.player.get_transform()
@@ -436,6 +527,7 @@ class World(object):
         player_loc =self.player.get_location()
         bicycle_loc =self.bicycle.actor.get_location()
         motorbike_loc =self.motorbike.actor.get_location()
+        smallcar_loc = self.smallcar.get_location()
         if(calculate_distance(player_loc,bicycle_loc) > 100):
             self.bicycle.set_target_velocity(0)
         else:
@@ -443,7 +535,11 @@ class World(object):
         if(calculate_distance(player_loc,motorbike_loc) > 100):
             self.motorbike.set_target_velocity(0)
         else:
-            self.motorbike.configure_behavior(change_lane=True,speed_percentage=20)
+            self.smallcar.configure_behavior(change_lane=True,speed_percentage=20)
+        if(calculate_distance(player_loc,smallcar_loc) > 100):
+            self.smallcar.set_target_velocity(0)
+        else:
+            self.smallcar.configure_behavior(change_lane=True,speed_percentage=20)
 
 
 
@@ -469,6 +565,8 @@ class World(object):
             self.bicycle.destroy()
         if self.motorbike is not None:
             self.motorbike.destroy()
+        if self.smallcar is not None:
+            self.smallcar.destroy()
         if self.log is not None:
             self.log.destroy()
 
@@ -481,6 +579,7 @@ class World(object):
 
 class DualControl(object):
     def __init__(self, world, start_in_autopilot,writer):
+        self.Wheel = False
         print("DualControl init")
         self._autopilot_enabled = start_in_autopilot
         if isinstance(world.player, carla.Vehicle):
@@ -494,28 +593,28 @@ class DualControl(object):
             raise NotImplementedError("Actor type not supported")
         self._steer_cache = 0.0
         world.hud.notification("Press 'H' or '?' for help.", seconds=4.0)
+        if self.Wheel:
+            # initialize steering wheel
+            pygame.joystick.init()
 
-        # initialize steering wheel
-        pygame.joystick.init()
+            joystick_count = pygame.joystick.get_count()
+            if joystick_count > 1:
+                raise ValueError("Please Connect Just One Joystick")
 
-        joystick_count = pygame.joystick.get_count()
-        if joystick_count > 1:
-            raise ValueError("Please Connect Just One Joystick")
+            self._joystick = pygame.joystick.Joystick(0)
+            self._joystick.init()
 
-        self._joystick = pygame.joystick.Joystick(0)
-        self._joystick.init()
-
-        self._parser = ConfigParser()
-        self._parser.read(r'C:\Users\CARLA-1\Desktop\project\carla\WindowsNoEditor\PythonAPI\examples\wheel_config.ini')
-        # print("sections: ",self._parser.sections())
-        self._steer_idx = int(
-            self._parser.get('G920 Racing Wheel', 'steering_wheel'))
-        self._throttle_idx = int(
-            self._parser.get('G920 Racing Wheel', 'throttle'))
-        self._brake_idx = int(self._parser.get('G920 Racing Wheel', 'brake'))
-        self._reverse_idx = int(self._parser.get('G920 Racing Wheel', 'reverse'))
-        self._handbrake_idx = int(
-            self._parser.get('G920 Racing Wheel', 'handbrake'))
+            self._parser = ConfigParser()
+            self._parser.read(r'C:\Users\CARLA-1\Desktop\project\carla\WindowsNoEditor\PythonAPI\examples\wheel_config.ini')
+            # print("sections: ",self._parser.sections())
+            self._steer_idx = int(
+                self._parser.get('G920 Racing Wheel', 'steering_wheel'))
+            self._throttle_idx = int(
+                self._parser.get('G920 Racing Wheel', 'throttle'))
+            self._brake_idx = int(self._parser.get('G920 Racing Wheel', 'brake'))
+            self._reverse_idx = int(self._parser.get('G920 Racing Wheel', 'reverse'))
+            self._handbrake_idx = int(
+                self._parser.get('G920 Racing Wheel', 'handbrake'))
 
     def parse_events(self, world, clock,v):
         for event in pygame.event.get():
@@ -575,15 +674,21 @@ class DualControl(object):
 
         if not self._autopilot_enabled:
             if isinstance(self._control, carla.VehicleControl):
-                self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time())
-                self._parse_vehicle_wheel(v,world)
+                self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time(),v)
+                if self.Wheel:
+                    self._parse_vehicle_wheel(v,world)
                 self._control.reverse = self._control.gear < 0
             elif isinstance(self._control, carla.WalkerControl):
                 self._parse_walker_keys(pygame.key.get_pressed(), clock.get_time())
             world.player.apply_control(self._control)
 
-    def _parse_vehicle_keys(self, keys, milliseconds):
+    def _parse_vehicle_keys(self, keys, milliseconds, v):
+        speed = (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2))
         self._control.throttle = 1.0 if keys[K_UP] or keys[K_w] else 0.0
+        if self._control.throttle <= 0 or speed > 80: # change speed limit
+            self._control.throttle = 0
+        elif self._control.throttle > 1:
+            self._control.throttle = 1
         steer_increment = 5e-4 * milliseconds
         if keys[K_LEFT] or keys[K_a]:
             self._steer_cache -= steer_increment
@@ -799,42 +904,51 @@ class HUD(object):
         self._notifications.set_text('Error: %s' % text, (255, 0, 0))
 
     def render(self, display):
-        if self._show_info:
-            info_surface = pygame.Surface((220, self.dim[1]))
-            info_surface.set_alpha(100)
-            display.blit(info_surface, (0, 0))
-            v_offset = 4
-            bar_h_offset = 100
-            bar_width = 106
-            for item in self._info_text:
-                if v_offset + 18 > self.dim[1]:
-                    break
-                if isinstance(item, list):
-                    if len(item) > 1:
-                        points = [(x + 8, v_offset + 8 + (1.0 - y) * 30) for x, y in enumerate(item)]
-                        pygame.draw.lines(display, (255, 136, 0), False, points, 2)
-                    item = None
-                    v_offset += 18
-                elif isinstance(item, tuple):
-                    if isinstance(item[1], bool):
-                        rect = pygame.Rect((bar_h_offset, v_offset + 8), (6, 6))
-                        pygame.draw.rect(display, (255, 255, 255), rect, 0 if item[1] else 1)
-                    else:
-                        rect_border = pygame.Rect((bar_h_offset, v_offset + 8), (bar_width, 6))
-                        pygame.draw.rect(display, (255, 255, 255), rect_border, 1)
-                        f = (item[1] - item[2]) / (item[3] - item[2])
-                        if item[2] < 0.0:
-                            rect = pygame.Rect((bar_h_offset + f * (bar_width - 6), v_offset + 8), (6, 6))
-                        else:
-                            rect = pygame.Rect((bar_h_offset, v_offset + 8), (f * bar_width, 6))
-                        pygame.draw.rect(display, (255, 255, 255), rect)
-                    item = item[0]
-                if item:  # At this point has to be a str.
-                    surface = self._font_mono.render(item, True, (255, 255, 255))
-                    display.blit(surface, (8, v_offset))
-                v_offset += 18
-        self._notifications.render(display)
-        self.help.render(display)
+        # Create the speed text
+        speed_text = self._info_text[7] # f"Speed: {self.speed_kmh:.1f} km/h"
+        surface = self._font_mono.render(speed_text, True, (255, 255, 255))  # White text
+        text_rect = surface.get_rect(center=(self.dim[0] // 2, self.dim[1] // 2))  # Centered position
+
+        # Draw the text on the screen
+        display.blit(surface, text_rect)
+    
+    # def render(self, display):
+    #     if self._show_info:
+    #         info_surface = pygame.Surface((220, self.dim[1]))
+    #         info_surface.set_alpha(100)
+    #         display.blit(info_surface, (0, 0))
+    #         v_offset = 4
+    #         bar_h_offset = 100
+    #         bar_width = 106
+    #         for item in self._info_text:
+    #             if v_offset + 18 > self.dim[1]:
+    #                 break
+    #             if isinstance(item, list):
+    #                 if len(item) > 1:
+    #                     points = [(x + 8, v_offset + 8 + (1.0 - y) * 30) for x, y in enumerate(item)]
+    #                     pygame.draw.lines(display, (255, 136, 0), False, points, 2)
+    #                 item = None
+    #                 v_offset += 18
+    #             elif isinstance(item, tuple):
+    #                 if isinstance(item[1], bool):
+    #                     rect = pygame.Rect((bar_h_offset, v_offset + 8), (6, 6))
+    #                     pygame.draw.rect(display, (255, 255, 255), rect, 0 if item[1] else 1)
+    #                 else:
+    #                     rect_border = pygame.Rect((bar_h_offset, v_offset + 8), (bar_width, 6))
+    #                     pygame.draw.rect(display, (255, 255, 255), rect_border, 1)
+    #                     f = (item[1] - item[2]) / (item[3] - item[2])
+    #                     if item[2] < 0.0:
+    #                         rect = pygame.Rect((bar_h_offset + f * (bar_width - 6), v_offset + 8), (6, 6))
+    #                     else:
+    #                         rect = pygame.Rect((bar_h_offset, v_offset + 8), (f * bar_width, 6))
+    #                     pygame.draw.rect(display, (255, 255, 255), rect)
+    #                 item = item[0]
+    #             if item:  # At this point has to be a str.
+    #                 surface = self._font_mono.render(item, True, (255, 255, 255))
+    #                 display.blit(surface, (8, v_offset))
+    #             v_offset += 18
+    #     self._notifications.render(display)
+    #     self.help.render(display)
 
 
 # ==============================================================================
@@ -1346,7 +1460,7 @@ def main():
     argparser.add_argument(
         '--res',
         metavar='WIDTHxHEIGHT',
-        default='1920x1080',
+        default='640x480',
         help='window resolution (default: 1280x720)')
     argparser.add_argument(
         '--filter',
