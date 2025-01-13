@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import os
 
 # Define the filename
-filename = r'C:\Users\CARLA-1\Desktop\project\carla\WindowsNoEditor\PythonAPI\project_bicycle_carla\log.csv'
+filename = r'c:/Roee/Uni/11th semester/פרויקט א/git repo/project_bicycle_carla/log.csv'
 
 # Check if the file exists
 if os.path.exists(filename):

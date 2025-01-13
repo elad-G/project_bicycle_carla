@@ -24,6 +24,8 @@ from csv import writer
 import matplotlib.pyplot as plt
 import os
 import time
+import tkinter as tk
+from tkinter import messagebox
 
 
 # ==============================================================================
@@ -355,7 +357,7 @@ class SmallCar:
             raise RuntimeError('SmallCar blueprint not found!')
         
         # Set attributes like color if applicable
-        blueprint.set_attribute('color', '255, 0, 0')  # Example color setting
+        blueprint.set_attribute('color', '0, 255, 0')  # Example color setting
 
         # Spawn the SmallCar at the specified location
         self.actor = self.world.try_spawn_actor(blueprint, self.spawn_point)
@@ -527,7 +529,7 @@ class World(object):
         player_loc =self.player.get_location()
         bicycle_loc =self.bicycle.actor.get_location()
         motorbike_loc =self.motorbike.actor.get_location()
-        smallcar_loc = self.smallcar.get_location()
+        smallcar_loc = self.smallcar.actor.get_location()
         if(calculate_distance(player_loc,bicycle_loc) > 100):
             self.bicycle.set_target_velocity(0)
         else:
@@ -540,6 +542,34 @@ class World(object):
             self.smallcar.set_target_velocity(0)
         else:
             self.smallcar.configure_behavior(change_lane=True,speed_percentage=20)
+
+
+        control = self.player.get_control()
+        # log player data
+        steerCmd = control.steer
+        steer_type = type(steerCmd)
+        print('steerCmd Type' + str(steer_type))
+        print("steer:" + str(steerCmd))
+        brakeCmd = control.brake
+        print(brakeCmd)
+        throttleCmd = control.throttle
+        print(throttleCmd)
+        # new_data = {"steerCmd":steerCmd , "brakeCmd": brakeCmd, "throttleCmd":throttleCmd }
+        # filename = "./example.csv"
+        # self.player.apply_control(self._control)
+
+        t = self.player.get_transform()
+        vehicles = self.world.get_actors().filter('vehicle.*')
+        distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
+        vehicles = [(distance(x.get_location()), x) for x in vehicles if x.id != self.player.id]
+        new_steer_cmd = map_steering_input_to_degrees(steerCmd) #### swap arg with json func for wheel
+
+        self.log.log_data(steerCmd=new_steer_cmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=vehicles[0][0], distance2=vehicles[1][0],world = self, increment_tick = True)
+
+
+
+        
+
 
 
 
@@ -719,7 +749,7 @@ class DualControl(object):
         K1 =  3 # orig = 1 TODO steering coefficient, decide optimum
         steerCmd = K1 * math.tan(1.1 * jsInputs[self._steer_idx])
         # print(jsInputs[self._steer_idx])
-        new_steer_cmd = map_steering_input_to_degrees(jsInputs[self._steer_idx])
+        # new_steer_cmd = map_steering_input_to_degrees(jsInputs[self._steer_idx])
 
         # print(new_steer_cmd)
         K2 = 1.6  # orig =  1.6 - TODO throttle shift value
@@ -744,7 +774,7 @@ class DualControl(object):
         self._control.brake = brakeCmd
         self._control.throttle = throttleCmd
         # new_data = {"steerCmd":steerCmd , "brakeCmd": brakeCmd, "throttleCmd":throttleCmd }
-        filename = "./example.csv"
+        # filename = "./example.csv"
         world.player.apply_control(self._control)
 
         t = world.player.get_transform()
@@ -771,9 +801,9 @@ class DualControl(object):
 
 
 
-        world.log.log_data(steerCmd=new_steer_cmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=vehicles[0][0], distance2=vehicles[1][0],world = world, increment_tick = True)
+        # world.log.log_data(steerCmd=new_steer_cmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=vehicles[0][0], distance2=vehicles[1][0],world = world, increment_tick = True)
         # pd.DataFrame(columns=['tick', 'data'])
-        log_data(filename, steerCmd, brakeCmd, throttleCmd,0)
+        # log_data(filename, steerCmd, brakeCmd, throttleCmd,0)
         # df_new = pd.DataFrame(new_data)
         # steerlog = pd.concat([steerlog, df_new], ignore_index=True)
 
@@ -891,7 +921,7 @@ class HUD(object):
                 #     break
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
                 self._info_text.append('% 4dm %s' % (d, vehicle_type))
-                log_data("./example.csv", 0, 0, 0, d)
+                # log_data("./example.csv", 0, 0, 0, d)
 
 
     def toggle_info(self):
@@ -1250,37 +1280,35 @@ class CameraManager(object):
 
 
 
-def initialize_csv(filename, headers):
-    """Initialize the CSV file and write headers."""
-    with open(filename, mode='w', newline='') as file:
-        writer = csv.writer(file)  # Create a csv.writer object
-        writer.writerow(headers)   # Write headers to the CSV file
+# def initialize_csv(filename, headers):
+#     """Initialize the CSV file and write headers."""
+#     with open(filename, mode='w', newline='') as file:
+#         writer = csv.writer(file)  # Create a csv.writer object
+#         writer.writerow(headers)   # Write headers to the CSV file
 
-def log_data(filename, steer_cmd, brake_cmd, throttle_cmd, distance):
-    """Append data to the CSV file."""
-    with open(filename, mode='a', newline='') as file:
-        writer = csv.writer(file)  # Create a csv.writer object
-        writer.writerow([steer_cmd, brake_cmd, throttle_cmd,distance])  # Write a row of data
+# def log_data(filename, steer_cmd, brake_cmd, throttle_cmd, distance):
+#     """Append data to the CSV file."""
+#     with open(filename, mode='a', newline='') as file:
+#         writer = csv.writer(file)  # Create a csv.writer object
+#         writer.writerow([steer_cmd, brake_cmd, throttle_cmd,distance])  # Write a row of data
 
-##############################################################################################################################################################
-##############################################################################################################################################################
+
+# ==============================================================================
+# -- Log -------------------------------------------------------------
+# ==============================================================================
+
 class Log:
-    def __init__(self):
+    def __init__(self,id):
         print("Log initialized")
         # Initialize the log with an empty DataFrame and columns
         self.cols = ['tick','time', 'steerCmd', 'brakeCmd', 'throttleCmd', 'distance1', 'distance2']
         self.df = pd.DataFrame(columns=self.cols)  # DataFrame with specific columns
         self.tick = 0  # Set the initial tick to 0
         self.clock = pygame.time.Clock()
+        self.id = id
 
 
     def log_data(self, steerCmd, brakeCmd, throttleCmd, distance1, distance2,world, increment_tick=False):
-        # Create a new row with the provided data and current tick
-        # timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        # snapshot = world.get_snapshot()  # Correct call to get snapshot
-        # simulation_time = snapshot.timestamp.elapsed_seconds  # Get elapsed time from simulation start
-        # simulation_time_raw = time.time()  # Use the current time in seconds since the Epoch
-        
         current_time = datetime.datetime.now()
 
         # Extract hours, minutes, seconds, and milliseconds
@@ -1317,35 +1345,31 @@ class Log:
         print(f"Log saved to {filename}")
         # self.generate_graph()
         del self  # Explicitly delete the instance to call destructor
-##############################################################################################################################################################
-##############################################################################################################################################################
 
+    # Initialize log function (call this once before the game loop starts)
+    def init_log(log_filename):
+        # Open CSV file and create writer object
+        csvfile = open(log_filename, 'w', newline='')
+        fieldnames = ['timestamp', 'steerCmd', 'brakeCmd', 'throttleCmd', 'Heading']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()  # Write CSV header
+        return csvfile, writer
 
-############################################################################### to check if logs as expected
-# Initialize log function (call this once before the game loop starts)
-def init_log(log_filename):
-    # Open CSV file and create writer object
-    csvfile = open(log_filename, 'w', newline='')
-    fieldnames = ['timestamp', 'steerCmd', 'brakeCmd', 'throttleCmd', 'Heading']
-    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-    writer.writeheader()  # Write CSV header
-    return csvfile, writer
+    # Log telemetry data (call this inside the game loop on each tick)
+    def log_telemetry(writer, vehicle):
+        # Get vehicle control and heading data
+        control = vehicle.get_control()
+        transform = vehicle.get_transform()
+        heading = transform.rotation.yaw
 
-# Log telemetry data (call this inside the game loop on each tick)
-def log_telemetry(writer, vehicle):
-    # Get vehicle control and heading data
-    control = vehicle.get_control()
-    transform = vehicle.get_transform()
-    heading = transform.rotation.yaw
-
-    # Write current data to CSV
-    writer.writerow({
-        'timestamp': time.time(),
-        'steerCmd': control.steer,
-        'brakeCmd': control.brake,
-        'throttleCmd': control.throttle,
-        'Heading': heading
-    })
+        # Write current data to CSV
+        writer.writerow({
+            'timestamp': time.time(),
+            'steerCmd': control.steer,
+            'brakeCmd': control.brake,
+            'throttleCmd': control.throttle,
+            'Heading': heading
+        })
 
 def map_steering_input_to_degrees(x):
     # Ensure x is between -1 and 1
@@ -1355,7 +1379,44 @@ def map_steering_input_to_degrees(x):
     # Convert x from range [-1, 1] to range [-225, 225]
     return (x * 225)
 
+# ==============================================================================
+# -- collect_user_id() ---------------------------------------------------------------
+# ==============================================================================
 
+
+def collect_user_id():
+    def submit_info():
+        nonlocal user_id, root
+        user_id = entry_id.get()
+        if user_id:
+            messagebox.showinfo("Welcome!", f"Hello {user_id}!\nStarting the CARLA simulation.")
+            root.destroy()  # Close the GUI window
+        else:
+            messagebox.showwarning("Input Required", "Please enter your ID.")
+    
+    # Tkinter GUI setup
+    root = tk.Tk()
+    root.title("CARLA Simulator Info")
+    root.geometry("400x200")
+
+    # Add widgets
+    label_id = tk.Label(root, text="Enter your ID:", font=("Arial", 12))
+    label_id.pack(pady=10)
+
+    entry_id = tk.Entry(root, font=("Arial", 12))
+    entry_id.pack(pady=5)
+
+    info_label = tk.Label(root, text="Welcome to the CARLA simulator.\nDrive safely and enjoy!", font=("Arial", 10), wraplength=350, justify="center")
+    info_label.pack(pady=10)
+
+    submit_button = tk.Button(root, text="Submit", command=submit_info, font=("Arial", 12), bg="lightblue")
+    submit_button.pack(pady=10)
+
+    # Run the Tkinter event loop
+    user_id = None
+    root.mainloop()
+
+    return user_id
 
 
 # ==============================================================================
@@ -1363,14 +1424,11 @@ def map_steering_input_to_degrees(x):
 # ==============================================================================
 
 
-def game_loop(args):
+def game_loop(args,id):
     pygame.init()
     pygame.font.init()
     world = None
-    filename = "./example.csv"
-    headers = ['steerCmd', 'brakeCmd', 'throttleCmd']
-    initialize_csv(filename, headers)
-    ### init_log(r'./example_telemetry.csv') for logging function
+    
 
 
     try:
@@ -1383,11 +1441,12 @@ def game_loop(args):
             pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.RESIZABLE)
 
         hud = HUD(args.width, args.height)
-        log = Log()
+        log = Log(id)
 
         world = World(client.get_world(), hud, args.filter, log,client)
-        # world = client.load_world('Town04')
         controller = DualControl(world, args.autopilot,writer)
+
+        # world = client.load_world('Town04')
         clock = pygame.time.Clock()
         
         while True:
@@ -1480,8 +1539,8 @@ def main():
     print(__doc__)
 
     try:
-
-        game_loop(args)
+        id = collect_user_id()
+        game_loop(args,id)
 
     except KeyboardInterrupt:
         print('\nCancelled by user. Bye!')
