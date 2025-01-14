@@ -421,7 +421,7 @@ class SmallCar:
 
 
 class World(object):
-    def __init__(self, carla_world, hud, actor_filter,log,client):
+    def __init__(self, carla_world, hud, actor_filter,log,client,scene):
         print("World init")
         self.world = carla_world
         self.client = client
@@ -436,11 +436,13 @@ class World(object):
         self.gnss_sensor = None
         self.camera_manager = None
         self._weather_presets = find_weather_presets()
-        self._weather_index = 0
+        self._weather_index = 1
         self._actor_filter = actor_filter
+        self.scene = scene
         self.restart()
         self.world.on_tick(hud.on_world_tick)
         self.log = log
+        
 
         #south (-19.5, -226.8)
 
@@ -456,41 +458,44 @@ class World(object):
         if blueprint.has_attribute('color'):
             color = random.choice(blueprint.get_attribute('color').recommended_values)
             blueprint.set_attribute('color', color)
-        #spwan bicycle rider
-        if self.bicycle is not None:
-            # spawn_point = self.bicycle.get_transform()
-            spawn_point_bicycle = carla.Transform(carla.Location(x=-271.1, y=37.1, z=2),carla.Rotation(yaw=0))
-            self.destroy()
-            self.bicycle.actor = self.world.try_spawn_actor(blueprint, spawn_point_bicycle)
-        while self.bicycle is None:
-            # spawn_points = self.world.get_map().get_spawn_points()
-            spawn_point_bicycle = carla.Transform(carla.Location(x=-271.1, y=37.1, z=2),carla.Rotation(yaw=0))
-            self.bicycle = BicycleRider(self.world,self.traffic_manager, spawn_point_bicycle)
 
-        #spwan motorbike rider
-        if self.motorbike is not None:
-            # spawn_point = self.motorbike.get_transform()
-            spawn_point_motorbike = carla.Transform(carla.Location(x=-67.2, y=37.3, z=13),carla.Rotation(yaw=0))
-            spawn_point_motorbike.location.z = self.world.get_map().get_spawn_points()[0].location.z
-            self.destroy()
-            self.motorbike.actor = self.world.try_spawn_actor(blueprint, spawn_point_motorbike)
-        while self.motorbike is None:
-            # spawn_points = self.world.get_map().get_spawn_points()
-            spawn_point_motorbike = carla.Transform(carla.Location(x=-67.2, y=37.3, z=13),carla.Rotation(yaw=0))
-            self.motorbike = MotorbikeRider(self.world,self.traffic_manager, spawn_point_motorbike)
+        ## only spawns vehicles for last gameloop call
+        if self.scene:
+            #spwan bicycle rider
+            if self.bicycle is not None:
+                # spawn_point = self.bicycle.get_transform()
+                spawn_point_bicycle = carla.Transform(carla.Location(x=-271.1, y=37.1, z=2),carla.Rotation(yaw=0))
+                self.bicycle.destroy()
+                self.bicycle.actor = self.world.try_spawn_actor(blueprint, spawn_point_bicycle)
+            while self.bicycle is None:
+                # spawn_points = self.world.get_map().get_spawn_points()
+                spawn_point_bicycle = carla.Transform(carla.Location(x=-271.1, y=37.1, z=2),carla.Rotation(yaw=0))
+                self.bicycle = BicycleRider(self.world,self.traffic_manager, spawn_point_bicycle)
+
+            #spwan motorbike rider
+            if self.motorbike is not None:
+                # spawn_point = self.motorbike.get_transform()
+                spawn_point_motorbike = carla.Transform(carla.Location(x=-67.2, y=37.3, z=13),carla.Rotation(yaw=0))
+                spawn_point_motorbike.location.z = self.world.get_map().get_spawn_points()[0].location.z
+                self.motorbike.destroy()
+                self.motorbike.actor = self.world.try_spawn_actor(blueprint, spawn_point_motorbike)
+            while self.motorbike is None:
+                # spawn_points = self.world.get_map().get_spawn_points()
+                spawn_point_motorbike = carla.Transform(carla.Location(x=-67.2, y=37.3, z=13),carla.Rotation(yaw=0))
+                self.motorbike = MotorbikeRider(self.world,self.traffic_manager, spawn_point_motorbike)
 
 
-        #spwan smallcar rider
-        if self.smallcar is not None:
-            # spawn_point = self.motorbike.get_transform()
-            spawn_point_smallcar = carla.Transform(carla.Location(x=147.2, y=38.6, z=10),carla.Rotation(yaw=0))
-            spawn_point_smallcar.location.z = self.world.get_map().get_spawn_points()[0].location.z
-            self.destroy()
-            self.smallcar.actor = self.world.try_spawn_actor(blueprint, spawn_point_smallcar)
-        while self.smallcar is None:
-            # spawn_points = self.world.get_map().get_spawn_points()
-            spawn_point_smallcar = carla.Transform(carla.Location(x=147.2, y=38.6, z=10),carla.Rotation(yaw=0))
-            self.smallcar = SmallCar(self.world,self.traffic_manager, spawn_point_smallcar)
+            #spwan smallcar rider
+            if self.smallcar is not None:
+                # spawn_point = self.motorbike.get_transform()
+                spawn_point_smallcar = carla.Transform(carla.Location(x=147.2, y=38.6, z=10),carla.Rotation(yaw=0))
+                spawn_point_smallcar.location.z = self.world.get_map().get_spawn_points()[0].location.z
+                self.smallcar.destroy()
+                self.smallcar.actor = self.world.try_spawn_actor(blueprint, spawn_point_smallcar)
+            while self.smallcar is None:
+                # spawn_points = self.world.get_map().get_spawn_points()
+                spawn_point_smallcar = carla.Transform(carla.Location(x=147.2, y=38.6, z=10),carla.Rotation(yaw=0))
+                self.smallcar = SmallCar(self.world,self.traffic_manager, spawn_point_smallcar)
 
 
         # Spawn the player.
@@ -527,44 +532,48 @@ class World(object):
         self.hud.tick(self, clock)
         #    def configure_behavior(self,change_lane=False,speed_percentage=50):
         player_loc =self.player.get_location()
-        bicycle_loc =self.bicycle.actor.get_location()
-        motorbike_loc =self.motorbike.actor.get_location()
-        smallcar_loc = self.smallcar.actor.get_location()
-        if(calculate_distance(player_loc,bicycle_loc) > 100):
-            self.bicycle.set_target_velocity(0)
-        else:
-            self.motorbike.configure_behavior(change_lane=True,speed_percentage=20)
-        if(calculate_distance(player_loc,motorbike_loc) > 100):
-            self.motorbike.set_target_velocity(0)
-        else:
-            self.smallcar.configure_behavior(change_lane=True,speed_percentage=20)
-        if(calculate_distance(player_loc,smallcar_loc) > 100):
-            self.smallcar.set_target_velocity(0)
-        else:
-            self.smallcar.configure_behavior(change_lane=True,speed_percentage=20)
+        if self.scene:
+            bicycle_loc =self.bicycle.actor.get_location()
+            motorbike_loc =self.motorbike.actor.get_location()
+            smallcar_loc = self.smallcar.actor.get_location()
+            if(calculate_distance(player_loc,bicycle_loc) > 100):
+                self.bicycle.set_target_velocity(0)
+            else:
+                self.motorbike.configure_behavior(change_lane=True,speed_percentage=20)
+            if(calculate_distance(player_loc,motorbike_loc) > 100):
+                self.motorbike.set_target_velocity(0)
+            else:
+                self.smallcar.configure_behavior(change_lane=True,speed_percentage=20)
+            if(calculate_distance(player_loc,smallcar_loc) > 100):
+                self.smallcar.set_target_velocity(0)
+            else:
+                self.smallcar.configure_behavior(change_lane=True,speed_percentage=20)
 
 
         control = self.player.get_control()
         # log player data
         steerCmd = control.steer
         steer_type = type(steerCmd)
-        print('steerCmd Type' + str(steer_type))
-        print("steer:" + str(steerCmd))
+        # print('steerCmd Type' + str(steer_type))
+        # print("steer:" + str(steerCmd))
         brakeCmd = control.brake
-        print(brakeCmd)
+        # print(brakeCmd)
         throttleCmd = control.throttle
-        print(throttleCmd)
+        # print(throttleCmd)
         # new_data = {"steerCmd":steerCmd , "brakeCmd": brakeCmd, "throttleCmd":throttleCmd }
         # filename = "./example.csv"
         # self.player.apply_control(self._control)
+        if self.scene:
+            t = self.player.get_transform()
+            vehicles = self.world.get_actors().filter('vehicle.*')
+            distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
+            vehicles = [(distance(x.get_location()), x) for x in vehicles if x.id != self.player.id]
+            new_steer_cmd = map_steering_input_to_degrees(steerCmd) #### swap arg with json func for wheel
+            self.log.log_data(steerCmd=new_steer_cmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=vehicles[0][0], distance2=vehicles[1][0],distance3=vehicles[2][0],world = self, increment_tick = True)
+        else:
+            new_steer_cmd = map_steering_input_to_degrees(steerCmd) #### swap arg with json func for wheel
+            self.log.log_data(steerCmd=new_steer_cmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=0, distance2=0,distance3=0,world = self, increment_tick = True)
 
-        t = self.player.get_transform()
-        vehicles = self.world.get_actors().filter('vehicle.*')
-        distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
-        vehicles = [(distance(x.get_location()), x) for x in vehicles if x.id != self.player.id]
-        new_steer_cmd = map_steering_input_to_degrees(steerCmd) #### swap arg with json func for wheel
-
-        self.log.log_data(steerCmd=new_steer_cmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=vehicles[0][0], distance2=vehicles[1][0],world = self, increment_tick = True)
 
 
 
@@ -668,7 +677,7 @@ class DualControl(object):
                 if self._is_quit_shortcut(event.key):
                     return True
                 elif event.key == K_BACKSPACE:
-                    world.restart()
+                    return True
                 elif event.key == K_F1:
                     world.hud.toggle_info()
                 elif event.key == K_h or (event.key == K_SLASH and pygame.key.get_mods() & KMOD_SHIFT):
@@ -1301,14 +1310,14 @@ class Log:
     def __init__(self,id):
         print("Log initialized")
         # Initialize the log with an empty DataFrame and columns
-        self.cols = ['tick','time', 'steerCmd', 'brakeCmd', 'throttleCmd', 'distance1', 'distance2']
+        self.cols = ['tick','time', 'steerCmd', 'brakeCmd', 'throttleCmd', 'distance1', 'distance2','distanc3']
         self.df = pd.DataFrame(columns=self.cols)  # DataFrame with specific columns
         self.tick = 0  # Set the initial tick to 0
         self.clock = pygame.time.Clock()
         self.id = id
 
 
-    def log_data(self, steerCmd, brakeCmd, throttleCmd, distance1, distance2,world, increment_tick=False):
+    def log_data(self, steerCmd, brakeCmd, throttleCmd, distance1, distance2,distance3,world, increment_tick=False):
         current_time = datetime.datetime.now()
 
         # Extract hours, minutes, seconds, and milliseconds
@@ -1328,7 +1337,9 @@ class Log:
             'brakeCmd': brakeCmd,
             'throttleCmd': throttleCmd,
             'distance1': distance1,
-            'distance2': distance2
+            'distance2': distance2,
+            'distance3': distance3
+
         }
         
         # Add the new data to the DataFrame
@@ -1338,22 +1349,15 @@ class Log:
         if increment_tick:
             self.tick += 1
 
-    def destroy(self, filename='log.csv'):
+    def destroy(self):
         print("Log destroyed")
         # Save the log to a CSV file before destroying
-        self.df.to_csv(filename, index=False)
+        filename = self.id
+        if filename != "":
+            filename = filename+".csv"
+            self.df.to_csv(filename, index=False)
         print(f"Log saved to {filename}")
-        # self.generate_graph()
         del self  # Explicitly delete the instance to call destructor
-
-    # Initialize log function (call this once before the game loop starts)
-    def init_log(log_filename):
-        # Open CSV file and create writer object
-        csvfile = open(log_filename, 'w', newline='')
-        fieldnames = ['timestamp', 'steerCmd', 'brakeCmd', 'throttleCmd', 'Heading']
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()  # Write CSV header
-        return csvfile, writer
 
     # Log telemetry data (call this inside the game loop on each tick)
     def log_telemetry(writer, vehicle):
@@ -1398,7 +1402,6 @@ def collect_user_id():
     root = tk.Tk()
     root.title("CARLA Simulator Info")
     root.geometry("400x200")
-
     # Add widgets
     label_id = tk.Label(root, text="Enter your ID:", font=("Arial", 12))
     label_id.pack(pady=10)
@@ -1418,13 +1421,54 @@ def collect_user_id():
 
     return user_id
 
+# ==============================================================================
+# -- 2nd run instructions ---------------------------------------------------------------
+# ==============================================================================
+
+  
+def instructions_gui(spawn):
+    def close_gui(event=None):  # Add `event` parameter for key binding
+        nonlocal root
+        messagebox.showinfo("Ready!", "Good luck with the next run!")
+        root.destroy()  # Close the GUI window
+
+    # Tkinter GUI setup
+    root = tk.Tk()
+    if spawn:
+        root.title("3nd Run Instructions")
+    else:
+        root.title("2nd Run Instructions")
+    root.geometry("400x200")
+
+    # Add widgets
+    label_title = tk.Label(root, text="Get Ready!", font=("Arial", 14, "bold"))
+    label_title.pack(pady=10)
+
+    info_label = tk.Label(
+        root,
+        text="For the next run, please focus on staying in your starting lane.\nPress the spacebar or click the button below to continue.",
+        font=("Arial", 10),
+        wraplength=350,
+        justify="center"
+    )
+    info_label.pack(pady=10)
+
+    submit_button = tk.Button(root, text="Let's Go!", command=close_gui, font=("Arial", 12), bg="lightblue")
+    submit_button.pack(pady=10)
+
+    # Bind the spacebar key to the `close_gui` function
+    root.bind('<space>', close_gui)
+
+    # Run the Tkinter event loop
+    root.mainloop()
+
 
 # ==============================================================================
 # -- game_loop() ---------------------------------------------------------------
 # ==============================================================================
 
 
-def game_loop(args,id):
+def game_loop(args,id,spawn):
     pygame.init()
     pygame.font.init()
     world = None
@@ -1443,7 +1487,7 @@ def game_loop(args,id):
         hud = HUD(args.width, args.height)
         log = Log(id)
 
-        world = World(client.get_world(), hud, args.filter, log,client)
+        world = World(client.get_world(), hud, args.filter, log,client,spawn)
         controller = DualControl(world, args.autopilot,writer)
 
         # world = client.load_world('Town04')
@@ -1540,7 +1584,15 @@ def main():
 
     try:
         id = collect_user_id()
-        game_loop(args,id)
+        game_loop(args,"", spawn=False)
+        print('first game')
+        instructions_gui(spawn=False)
+        game_loop(args,id+"A", spawn=False)
+        print('second game')
+        instructions_gui(spawn=True)
+        game_loop(args,id+"B",spawn=True)
+        print('third game')
+
 
     except KeyboardInterrupt:
         print('\nCancelled by user. Bye!')
