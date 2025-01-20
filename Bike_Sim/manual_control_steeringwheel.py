@@ -589,8 +589,13 @@ class World(object):
 
     def destroy(self):
         print("Destroying world")
+        if self.log is not None:
+            print("trying to destroy log")
+            self.log.destroy()
         sensors = [
             self.camera_manager.sensor,
+             self.camera_manager.left_camera,
+             self.camera_manager.rear_camera,
             self.collision_sensor.sensor,
             self.lane_invasion_sensor.sensor,
             self.gnss_sensor.sensor]
@@ -606,8 +611,7 @@ class World(object):
             self.motorbike.destroy()
         if self.smallcar is not None:
             self.smallcar.destroy()
-        if self.log is not None:
-            self.log.destroy()
+            print("destroyed smallcar")
 
 
 
@@ -618,7 +622,7 @@ class World(object):
 
 class DualControl(object):
     def __init__(self, world, start_in_autopilot,writer):
-        self.Wheel = False
+        self.Wheel = True
         print("DualControl init")
         self._autopilot_enabled = start_in_autopilot
         if isinstance(world.player, carla.Vehicle):
@@ -896,7 +900,7 @@ class HUD(object):
             'Map:     % 20s' % world.world.get_map().name.split('/')[-1],
             'Simulation time: % 12s' % datetime.timedelta(seconds=int(self.simulation_time)),
             '',
-            'Speed:   % 15.0f km/h' % (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)),
+            '% 15.0f km/h' % (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)), #speed
             u'Heading:% 16.0f\N{DEGREE SIGN} % 2s' % (t.rotation.yaw, heading),
             'Location:% 20s' % ('(% 5.1f, % 5.1f)' % (t.location.x, t.location.y)),
             'GNSS:% 24s' % ('(% 2.6f, % 3.6f)' % (world.gnss_sensor.lat, world.gnss_sensor.lon)),
@@ -943,10 +947,13 @@ class HUD(object):
         self._notifications.set_text('Error: %s' % text, (255, 0, 0))
 
     def render(self, display):
+            # Use a system font that resembles a digital font (e.g., "consolas" or "courier new")
+        self._font_digital = pygame.font.SysFont("consolas", 48, bold=True)  # Set size to 48 and bold text
+
         # Create the speed text
         speed_text = self._info_text[7] # f"Speed: {self.speed_kmh:.1f} km/h"
-        surface = self._font_mono.render(speed_text, True, (255, 255, 255))  # White text
-        text_rect = surface.get_rect(center=(self.dim[0] // 2, self.dim[1] // 2))  # Centered position
+        surface = self._font_digital.render(speed_text, True, (255, 255, 255))  # White text
+        text_rect = surface.get_rect(center=(self.dim[0] -850, self.dim[1] -200))  # Centered position
 
         # Draw the text on the screen
         display.blit(surface, text_rect)
@@ -1175,6 +1182,34 @@ class GnssSensor(object):
 
 
 class CameraManager(object):
+    '''
+    CameraManager is responsible for managing the camera sensors attached to a vehicle in the CARLA simulator.
+    It handles the initialization, setting, and rendering of the main camera and additional cameras (left and rear).
+    Attributes:
+        sensor (carla.Sensor): The main camera sensor.
+        surface (pygame.Surface): The surface for the main camera view.
+        _parent (carla.Actor): The parent actor to which the cameras are attached.
+        hud (HUD): The HUD object for displaying notifications.
+        recording (bool): Flag indicating whether recording is active.
+        _camera_transforms (list): List of carla.Transform objects defining the positions and orientations of the cameras.
+        sensors (list): List of sensor configurations.
+        sensor_blueprints (list): List of sensor blueprints.
+        index (int): The index of the current sensor.
+        left_camera (carla.Sensor): The left camera sensor.
+        rear_camera (carla.Sensor): The rear camera sensor.
+        left_surface (pygame.Surface): The surface for the left camera view.
+        rear_surface (pygame.Surface): The surface for the rear camera view.
+    Methods:
+        __init__(parent_actor, hud):
+            Initializes the CameraManager with the given parent actor and HUD.
+        set_sensor(index, notify=True):
+        render(display):
+            Renders the camera views onto the given display.
+        _parse_image(weak_self, image):
+            Parses the image data from the main camera sensor.
+        _parse_side_image(weak_self, image, position):
+            Parses the image data from the additional cameras (left and rear).
+    '''
     def __init__(self, parent_actor, hud):
         print("CameraManager init")
         self.sensor = None
@@ -1182,6 +1217,8 @@ class CameraManager(object):
         self._parent = parent_actor
         self.hud = hud
         self.recording = False
+        self.left_camera = None
+        self.rear_camera = None
         self._camera_transforms = [
             carla.Transform(carla.Location(x=-0.2,y=-0.2, z=1.3), carla.Rotation(yaw=0)),  # Main front view
             carla.Transform(carla.Location(x=-0.15, y=-0.4, z=1.2), carla.Rotation()),  # Close view
@@ -1214,6 +1251,19 @@ class CameraManager(object):
         self.rear_surface = None
 
     def set_sensor(self, index, notify=True):
+        """
+        Sets the sensor for the vehicle and spawns additional cameras.
+        Args:
+            index (int): The index of the sensor to set.
+            notify (bool, optional): Whether to notify the HUD of the sensor change. Defaults to True.
+        This method performs the following steps:
+        1. Determines the sensor index and checks if a respawn is needed.
+        2. If a respawn is needed, destroys the current sensor and spawns a new one.
+        3. Sets up additional cameras (left and rear).
+        4. Listens to the sensor and additional cameras for image data.
+        Note:
+            The right camera setup is currently commented out.
+        """
         index = index % len(self.sensors)
         needs_respawn = True if self.index is None else self.sensors[index][0] != self.sensors[self.index][0]
         if needs_respawn:
@@ -1350,14 +1400,23 @@ class Log:
             self.tick += 1
 
     def destroy(self):
-        print("Log destroyed")
         # Save the log to a CSV file before destroying
         filename = self.id
-        if filename != "":
-            filename = filename+".csv"
-            self.df.to_csv(filename, index=False)
-        print(f"Log saved to {filename}")
-        del self  # Explicitly delete the instance to call destructor
+        print("file name is ", filename)  # DONT DELETE - this line is cursed and will break the code in the third game loop
+        if filename and isinstance(filename, str):
+            filename = filename.strip() + ".csv"
+            try:
+                if hasattr(self, 'df') and self.df is not None:
+                    self.df.to_csv(filename, index=False)
+                    print(f"Log saved to {filename}")
+                else:
+                    print("No data to save to CSV.")
+            except Exception as e:
+                print(f"Failed to save log to {filename}: {e}")
+        else:
+            print("Invalid filename. Log not saved.")
+        print("Log destroyed")
+
 
     # Log telemetry data (call this inside the game loop on each tick)
     def log_telemetry(writer, vehicle):
@@ -1498,6 +1557,7 @@ def game_loop(args,id,spawn):
             clock.tick_busy_loop(60)
             v = world.player.get_velocity()
             if controller.parse_events(world, clock,v):
+                pygame.quit()
                 return
             world.tick(clock)
             
@@ -1518,10 +1578,10 @@ def game_loop(args,id,spawn):
             pygame.display.flip()
 
     finally:
-
+        print("fianllyllylylylylyl")
         if world is not None:
             world.destroy()
-
+        print("trying to quit pygame")
         pygame.quit()
 
 
@@ -1560,10 +1620,10 @@ def main():
         '-a', '--autopilot',
         action='store_true',
         help='enable autopilot')
-    argparser.add_argument(
+    argparser.add_argument( 
         '--res',
         metavar='WIDTHxHEIGHT',
-        default='640x480',
+        default='1920x1080',
         help='window resolution (default: 1280x720)')
     argparser.add_argument(
         '--filter',
@@ -1585,13 +1645,16 @@ def main():
     try:
         id = collect_user_id()
         game_loop(args,"", spawn=False)
-        print('first game')
+        print('first game id :',id)
         instructions_gui(spawn=False)
-        game_loop(args,id+"A", spawn=False)
-        print('second game')
+        id_new = id + "_A"
+        game_loop(args,id_new, spawn=False)
+        print('second game id :',id)
         instructions_gui(spawn=True)
-        game_loop(args,id+"B",spawn=True)
-        print('third game')
+        id_new = id + "_B"
+        game_loop(args,id_new,spawn=True)
+        print('third game id :',id)
+
 
 
     except KeyboardInterrupt:

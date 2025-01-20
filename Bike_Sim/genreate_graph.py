@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import os
 
 # Define the filename
-filename = r'c:/Roee/Uni/11th semester/פרויקט א/git repo/project_bicycle_carla/log.csv'
+filename = r'C:\Users\CARLA-1\Desktop\project\carla\WindowsNoEditor\PythonAPI\project_bicycle_carla\test_run_roee_B.csv'
 
 # Check if the file exists
 if os.path.exists(filename):
@@ -45,7 +45,7 @@ print(os.getcwd())
 plt.figure(figsize=(14, 7))
 
 # Plot steerCmd
-plt.subplot(5, 1, 1)
+plt.subplot(6, 1, 1)
 plt.plot(df.index, df['steerCmd'], label='Steer Command', color='blue')
 plt.xlabel('Index')
 plt.ylabel('Steer Command')
@@ -54,7 +54,7 @@ plt.legend()
 plt.grid(True)
 
 # Plot brakeCmd
-plt.subplot(5, 1, 2)
+plt.subplot(6, 1, 2)
 plt.plot(df.index, df['brakeCmd'], label='Brake Command', color='red')
 plt.xlabel('Index')
 plt.ylabel('Brake Command')
@@ -63,7 +63,7 @@ plt.legend()
 plt.grid(True)
 
 # Plot throttleCmd
-plt.subplot(5, 1, 3)
+plt.subplot(6, 1, 3)
 plt.plot(df.index, df['throttleCmd'], label='Throttle Command', color='green')
 plt.xlabel('Index')
 plt.ylabel('Throttle Command')
@@ -72,7 +72,7 @@ plt.legend()
 plt.grid(True)
 
 # Plot distance
-plt.subplot(5, 1, 4)
+plt.subplot(6, 1, 4)
 plt.plot(df.index, df['distance1'], label='distance1', color='black')
 plt.xlabel('Index')
 plt.ylabel('distance')
@@ -81,8 +81,17 @@ plt.legend()
 plt.grid(True)
 
 # Plot distance
-plt.subplot(5, 1, 5)
+plt.subplot(6, 1, 5)
 plt.plot(df.index, df['distance2'], label='distance2', color='gray')
+plt.xlabel('Index')
+plt.ylabel('distance')
+plt.title('distance Over Time')
+plt.legend()
+plt.grid(True)
+
+# Plot distance
+plt.subplot(6, 1, 6)
+plt.plot(df.index, df['distance3'], label='distance3', color='yellow')
 plt.xlabel('Index')
 plt.ylabel('distance')
 plt.title('distance Over Time')
