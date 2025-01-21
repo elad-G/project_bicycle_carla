@@ -15,7 +15,6 @@ To drive start by preshing the brake pedal.
 Change your wheel_config.ini according to your steering wheel.
 
 To find out the values of your steering wheel use jstest-gtk in Ubuntu.
-
 """
 
 from __future__ import print_function
