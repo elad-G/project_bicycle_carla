@@ -15,7 +15,6 @@ To drive start by preshing the brake pedal.
 Change your wheel_config.ini according to your steering wheel.
 
 To find out the values of your steering wheel use jstest-gtk in Ubuntu.
-
 """
 
 from __future__ import print_function
@@ -532,6 +531,7 @@ class World(object):
         self.hud.tick(self, clock)
         #    def configure_behavior(self,change_lane=False,speed_percentage=50):
         player_loc =self.player.get_location()
+        
         if self.scene:
             bicycle_loc =self.bicycle.actor.get_location()
             motorbike_loc =self.motorbike.actor.get_location()
