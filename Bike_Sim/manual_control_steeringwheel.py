@@ -172,7 +172,7 @@ class BicycleRider:
         else:
             print("Failed to spawn bicycle.")
 
-    def configure_behavior(self,change_lane=False,speed_percentage=50):
+    def configure_behavior(self,change_lane=False,speed_percentage=100):
         """Configure traffic manager behavior for the bicycle."""
         if not self.actor:
             print("No actor to configure.")
@@ -185,7 +185,6 @@ class BicycleRider:
 
         # Enable autopilot and set the speed
         self.actor.set_autopilot(True, self.traffic_manager.get_port())
-        #print(f"Bicycle {self.actor.id} configured with autopilot and custom behavior.")
 
     def set_target_velocity(self, velocity):
         """Set a custom target velocity for the bicycle."""
@@ -207,30 +206,6 @@ class BicycleRider:
             self.actor.destroy()
             self.actor = None
 
-
-# class BicycleRider:
-#     def __init__(self, world, spawn_point):
-#         self.world = world
-#         self.spawn_point = spawn_point
-#         self.actor = None
-#         self.spawn_bicycle()
-
-#     def spawn_bicycle(self):
-#         # Define the blueprint for a bicycle; update this according to your specific blueprint
-#         blueprint = self.world.get_blueprint_library().find('vehicle.diamondback.century')
-#         blueprint.set_attribute('color', '255, 234, 0')
-#         if not blueprint:
-#             raise RuntimeError('Bicycle blueprint not found!')
-
-#         # Spawn the bicycle at the specified location
-#         self.actor = self.world.spawn_actor(blueprint, self.spawn_point)
-#         # self.bicycle.apply_control(carla.VehicleControl(throttle = 0, brake = 1))
-#         self.actor.set_autopilot(True)  # Optionally enable autopilot
-#         self.actor.set_target_velocity(25)
-
-#     def destroy(self):
-#         if self.actor:
-#             self.actor.destroy()
 
 # ==============================================================================
 # -- MotorbikeRider Class -------------------------------------------------------
@@ -262,7 +237,7 @@ class MotorbikeRider:
         else:
             print("Failed to spawn motorbike.")
 
-    def configure_behavior(self,change_lane=False,speed_percentage=50):
+    def configure_behavior(self,change_lane=False,speed_percentage=100):
         """Configure traffic manager behavior for the motorbike."""
         if not self.actor:
             print("No actor to configure.")
@@ -310,31 +285,6 @@ class MotorbikeRider:
             self.actor.destroy()
             self.actor = None
 
-# class MotorbikeRider:
-#     def __init__(self, world, spawn_point):
-#         print("MotorbikeRider init")
-#         self.world = world
-#         self.spawn_point = spawn_point
-#         self.actor = None
-#         self.spawn_motorbike()
-
-#     def spawn_motorbike(self):
-#         # Define the blueprint for a motorbike; update this according to your specific blueprint
-#         blueprint = self.world.get_blueprint_library().find('vehicle.kawasaki.ninja')
-#         # self.motorbike.set_attribute('color', '255, 234, 0')
-#         if not blueprint:
-#             raise RuntimeError('Motorbike blueprint not found!')
-
-#         # Spawn the motorbike at the specified location
-#         self.actor = self.world.spawn_actor(blueprint, self.spawn_point)
-#         self.actor.set_autopilot(True)  # Optionally enable autopilot
-        
-
-
-#     def destroy(self):
-#         if self.actor:
-#             print(f"Destroying motorbike with ID: {self.actor.id}")
-#             self.actor.destroy()
 
 # ==============================================================================
 # -- SmallCar Class -------------------------------------------------------
@@ -366,7 +316,7 @@ class SmallCar:
         else:
             print("Failed to spawn SmallCar.")
 
-    def configure_behavior(self,change_lane=False,speed_percentage=50):
+    def configure_behavior(self,change_lane=False,speed_percentage=100):
         """Configure traffic manager behavior for the SmallCar."""
         if not self.actor:
             print("No actor to configure.")
@@ -435,7 +385,7 @@ class World(object):
         self.gnss_sensor = None
         self.camera_manager = None
         self._weather_presets = find_weather_presets()
-        self._weather_index = 1
+        self._weather_index = 2
         self._actor_filter = actor_filter
         self.scene = scene
         self.restart()
@@ -519,6 +469,10 @@ class World(object):
         self.camera_manager.set_sensor(cam_index, notify=False)
         actor_type = get_actor_display_name(self.player)
         self.hud.notification(actor_type)
+        # weather presets
+        nice_weather = carla.WeatherParameters.ClearNoon  # Adjust this as per your preferred preset
+        self.player.get_world().set_weather(nice_weather)
+
 
     def next_weather(self, reverse=False):
         self._weather_index += -1 if reverse else 1
@@ -527,11 +481,10 @@ class World(object):
         self.hud.notification('Weather: %s' % preset[1])
         self.player.get_world().set_weather(preset[0])
 
+
     def tick(self, clock):
         self.hud.tick(self, clock)
-        #    def configure_behavior(self,change_lane=False,speed_percentage=50):
         player_loc =self.player.get_location()
-        
         if self.scene:
             bicycle_loc =self.bicycle.actor.get_location()
             motorbike_loc =self.motorbike.actor.get_location()
@@ -539,47 +492,48 @@ class World(object):
             if(calculate_distance(player_loc,bicycle_loc) > 100):
                 self.bicycle.set_target_velocity(0)
             else:
-                self.motorbike.configure_behavior(change_lane=True,speed_percentage=20)
+                self.motorbike.configure_behavior(change_lane=True,speed_percentage=100)
             if(calculate_distance(player_loc,motorbike_loc) > 100):
                 self.motorbike.set_target_velocity(0)
             else:
-                self.smallcar.configure_behavior(change_lane=True,speed_percentage=20)
+                self.smallcar.configure_behavior(change_lane=True,speed_percentage=100)
             if(calculate_distance(player_loc,smallcar_loc) > 100):
                 self.smallcar.set_target_velocity(0)
             else:
-                self.smallcar.configure_behavior(change_lane=True,speed_percentage=20)
+                self.smallcar.configure_behavior(change_lane=True,speed_percentage=100)
 
 
         control = self.player.get_control()
-        # log player data
         steerCmd = control.steer
-        steer_type = type(steerCmd)
-        # print('steerCmd Type' + str(steer_type))
-        # print("steer:" + str(steerCmd))
         brakeCmd = control.brake
-        # print(brakeCmd)
         throttleCmd = control.throttle
-        # print(throttleCmd)
-        # new_data = {"steerCmd":steerCmd , "brakeCmd": brakeCmd, "throttleCmd":throttleCmd }
-        # filename = "./example.csv"
-        # self.player.apply_control(self._control)
         if self.scene:
             t = self.player.get_transform()
             vehicles = self.world.get_actors().filter('vehicle.*')
             distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
             vehicles = [(distance(x.get_location()), x) for x in vehicles if x.id != self.player.id]
-            new_steer_cmd = map_steering_input_to_degrees(steerCmd) #### swap arg with json func for wheel
-            self.log.log_data(steerCmd=new_steer_cmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=vehicles[0][0], distance2=vehicles[1][0],distance3=vehicles[2][0],world = self, increment_tick = True)
+            # new_steer_cmd = map_steering_input_to_degrees(steerCmd) #### swap arg with json func for wheel
+            self.log.log_data(steerCmd=steerCmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=vehicles[0][0],
+                               distance2=vehicles[1][0],distance3=vehicles[2][0],world = self, increment_tick = True)
         else:
-            new_steer_cmd = map_steering_input_to_degrees(steerCmd) #### swap arg with json func for wheel
-            self.log.log_data(steerCmd=new_steer_cmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=0, distance2=0,distance3=0,world = self, increment_tick = True)
+            # bicycle location:
+            x=-271.1
+            y=37.1
+            z=2
+            distance1 = math.sqrt((x - player_loc.x)**2 + (y - player_loc.y)**2 + (z - player_loc.z)**2)
+            # motorbike location:
+            x=-67.2
+            y=37.3
+            z=13
+            distance2 = math.sqrt((x - player_loc.x)**2 + (y - player_loc.y)**2 + (z - player_loc.z)**2)
+            # smallcar location:
+            x=147.2
+            y=38.6
+            z=10
 
-
-
-
-        
-
-
+            distance3 = math.sqrt((x - player_loc.x)**2 + (y - player_loc.y)**2 + (z - player_loc.z)**2)
+            self.log.log_data(steerCmd=steerCmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=distance1, distance2=distance2,
+                              distance3=distance3,world = self, increment_tick = True)
 
 
     def render(self, display):
@@ -762,13 +716,9 @@ class DualControl(object):
         K1 =  3 # orig = 1 TODO steering coefficient, decide optimum
         steerCmd = K1 * math.tan(1.1 * jsInputs[self._steer_idx])
         # print(jsInputs[self._steer_idx])
-        # new_steer_cmd = map_steering_input_to_degrees(jsInputs[self._steer_idx])
-
-        # print(new_steer_cmd)
         K2 = 1.6  # orig =  1.6 - TODO throttle shift value
         throttleCmd = K2 + (2.05 * math.log10(
             -0.7 * jsInputs[self._throttle_idx] + 1.4) - 1.2) / 0.92
-        # print("Throtle: " +str(throttleCmd))
 
         speed = (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2))
         if throttleCmd <= 0 or speed > 80: # change speed limit
@@ -786,43 +736,12 @@ class DualControl(object):
         self._control.steer = steerCmd
         self._control.brake = brakeCmd
         self._control.throttle = throttleCmd
-        # new_data = {"steerCmd":steerCmd , "brakeCmd": brakeCmd, "throttleCmd":throttleCmd }
-        # filename = "./example.csv"
         world.player.apply_control(self._control)
 
         t = world.player.get_transform()
         vehicles = world.world.get_actors().filter('vehicle.*')
         distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
         vehicles = [(distance(x.get_location()), x) for x in vehicles if x.id != world.player.id]
-
-
-        # actors = world.world.get_actors().filter('vehicle.*')
-        # for a in actors:
-        #     if a.id == world.player.id:
-        #         continue
-        #     if calculate_distance(a.get_location(), t.location) > 110:
-        #         a.apply_control(carla.VehicleControl(throttle = 0, brake = 1)) 
-        #         a.set_autopilot(True)  # Optionally enable autopilot
-
-        #     else:
-        #         a.apply_control(carla.VehicleControl(throttle = 1, brake = 0))
-        #         a.set_autopilot(True)  # Optionally enable autopilot
-
-
-            
-            
-
-
-
-        # world.log.log_data(steerCmd=new_steer_cmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=vehicles[0][0], distance2=vehicles[1][0],world = world, increment_tick = True)
-        # pd.DataFrame(columns=['tick', 'data'])
-        # log_data(filename, steerCmd, brakeCmd, throttleCmd,0)
-        # df_new = pd.DataFrame(new_data)
-        # steerlog = pd.concat([steerlog, df_new], ignore_index=True)
-
-
-        #toggle = jsButtons[self._reverse_idx]
-
         self._control.hand_brake = bool(jsButtons[self._handbrake_idx])
 
     def _parse_walker_keys(self, keys, milliseconds):
@@ -934,7 +853,6 @@ class HUD(object):
                 #     break
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
                 self._info_text.append('% 4dm %s' % (d, vehicle_type))
-                # log_data("./example.csv", 0, 0, 0, d)
 
 
     def toggle_info(self):
@@ -1339,18 +1257,6 @@ class CameraManager(object):
 
 
 
-# def initialize_csv(filename, headers):
-#     """Initialize the CSV file and write headers."""
-#     with open(filename, mode='w', newline='') as file:
-#         writer = csv.writer(file)  # Create a csv.writer object
-#         writer.writerow(headers)   # Write headers to the CSV file
-
-# def log_data(filename, steer_cmd, brake_cmd, throttle_cmd, distance):
-#     """Append data to the CSV file."""
-#     with open(filename, mode='a', newline='') as file:
-#         writer = csv.writer(file)  # Create a csv.writer object
-#         writer.writerow([steer_cmd, brake_cmd, throttle_cmd,distance])  # Write a row of data
-
 
 # ==============================================================================
 # -- Log -------------------------------------------------------------
@@ -1360,7 +1266,8 @@ class Log:
     def __init__(self,id):
         print("Log initialized")
         # Initialize the log with an empty DataFrame and columns
-        self.cols = ['tick','time', 'steerCmd', 'brakeCmd', 'throttleCmd', 'distance1', 'distance2','distanc3']
+        self.cols = ['tick','time', 'steerCmd', 'brakeCmd', 'throttleCmd', 'distance1', 'distance2','distanc3', 'Location_X', 'Location_Y', 'Location_Z', 
+                         'Rotation_Pitch', 'Rotation_Yaw', 'Rotation_Roll']
         self.df = pd.DataFrame(columns=self.cols)  # DataFrame with specific columns
         self.tick = 0  # Set the initial tick to 0
         self.clock = pygame.time.Clock()
@@ -1378,7 +1285,10 @@ class Log:
         
         # Format the time as HH:MM:SS:SSS
         formatted_time = f"{hours}:{minutes}:{seconds}:{milliseconds:03}"
-        
+        t = world.player.get_transform()
+        location = t.location
+        rotation = t.rotation
+
 
         new_data = {
             'tick': self.tick,
@@ -1388,8 +1298,13 @@ class Log:
             'throttleCmd': throttleCmd,
             'distance1': distance1,
             'distance2': distance2,
-            'distance3': distance3
-
+            'distance3': distance3,
+            'Location_X': location.x,
+            'Location_Y': location.y,
+            'Location_Z': location.z,
+            'Rotation_Pitch': rotation.pitch,
+            'Rotation_Yaw': rotation.yaw,
+            'Rotation_Roll' :rotation.roll,
         }
         
         # Add the new data to the DataFrame
