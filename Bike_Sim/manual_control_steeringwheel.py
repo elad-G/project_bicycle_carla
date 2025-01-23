@@ -502,38 +502,38 @@ class World(object):
             else:
                 self.smallcar.configure_behavior(change_lane=True,speed_percentage=100)
 
+        self.log.log_data(world = self, increment_tick = True)
+        # control = self.player.get_control()
+        # steerCmd = control.steer
+        # brakeCmd = control.brake
+        # throttleCmd = control.throttle
+        # if self.scene:
+        #     t = self.player.get_transform()
+        #     vehicles = self.world.get_actors().filter('vehicle.*')
+        #     distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
+        #     vehicles = [(distance(x.get_location()), x) for x in vehicles if x.id != self.player.id]
+        #     # new_steer_cmd = map_steering_input_to_degrees(steerCmd) #### swap arg with json func for wheel
+        #     self.log.log_data(steerCmd=steerCmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=vehicles[0][0],
+        #                        distance2=vehicles[1][0],distance3=vehicles[2][0],world = self, increment_tick = True)
+        # else:
+        #     # bicycle location:
+        #     x=-271.1
+        #     y=37.1
+        #     z=2
+        #     distance1 = math.sqrt((x - player_loc.x)**2 + (y - player_loc.y)**2 + (z - player_loc.z)**2)
+        #     # motorbike location:
+        #     x=-67.2
+        #     y=37.3
+        #     z=13
+        #     distance2 = math.sqrt((x - player_loc.x)**2 + (y - player_loc.y)**2 + (z - player_loc.z)**2)
+        #     # smallcar location:
+        #     x=147.2
+        #     y=38.6
+        #     z=10
 
-        control = self.player.get_control()
-        steerCmd = control.steer
-        brakeCmd = control.brake
-        throttleCmd = control.throttle
-        if self.scene:
-            t = self.player.get_transform()
-            vehicles = self.world.get_actors().filter('vehicle.*')
-            distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
-            vehicles = [(distance(x.get_location()), x) for x in vehicles if x.id != self.player.id]
-            # new_steer_cmd = map_steering_input_to_degrees(steerCmd) #### swap arg with json func for wheel
-            self.log.log_data(steerCmd=steerCmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=vehicles[0][0],
-                               distance2=vehicles[1][0],distance3=vehicles[2][0],world = self, increment_tick = True)
-        else:
-            # bicycle location:
-            x=-271.1
-            y=37.1
-            z=2
-            distance1 = math.sqrt((x - player_loc.x)**2 + (y - player_loc.y)**2 + (z - player_loc.z)**2)
-            # motorbike location:
-            x=-67.2
-            y=37.3
-            z=13
-            distance2 = math.sqrt((x - player_loc.x)**2 + (y - player_loc.y)**2 + (z - player_loc.z)**2)
-            # smallcar location:
-            x=147.2
-            y=38.6
-            z=10
-
-            distance3 = math.sqrt((x - player_loc.x)**2 + (y - player_loc.y)**2 + (z - player_loc.z)**2)
-            self.log.log_data(steerCmd=steerCmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=distance1, distance2=distance2,
-                              distance3=distance3,world = self, increment_tick = True)
+        #     distance3 = math.sqrt((x - player_loc.x)**2 + (y - player_loc.y)**2 + (z - player_loc.z)**2)
+        #     self.log.log_data(steerCmd=steerCmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=distance1, distance2=distance2,
+        #                       distance3=distance3,world = self, increment_tick = True)
 
 
     def render(self, display):
@@ -1263,60 +1263,119 @@ class CameraManager(object):
 # ==============================================================================
 
 class Log:
-    def __init__(self,id):
+    # def __init__(self,id):
+    #     print("Log initialized")
+    #     # Initialize the log with an empty DataFrame and columns
+    #     self.cols = ['tick','time', 'steerCmd', 'brakeCmd', 'throttleCmd', 'distance1', 'distance2','distanc3', 'Location_X', 'Location_Y', 'Location_Z', 
+    #                      'Rotation_Pitch', 'Rotation_Yaw', 'Rotation_Roll']
+    #     self.df = pd.DataFrame(columns=self.cols)  # DataFrame with specific columns
+    #     self.tick = 0  # Set the initial tick to 0
+    #     self.clock = pygame.time.Clock()
+    #     self.id = id
+    def __init__(self, id):
         print("Log initialized")
-        # Initialize the log with an empty DataFrame and columns
-        self.cols = ['tick','time', 'steerCmd', 'brakeCmd', 'throttleCmd', 'distance1', 'distance2','distanc3', 'Location_X', 'Location_Y', 'Location_Z', 
-                         'Rotation_Pitch', 'Rotation_Yaw', 'Rotation_Roll']
-        self.df = pd.DataFrame(columns=self.cols)  # DataFrame with specific columns
-        self.tick = 0  # Set the initial tick to 0
-        self.clock = pygame.time.Clock()
-        self.id = id
+        # Initialize the log with an empty DataFrame
+        self.cols = [
+            'tick', 'time', 
+            'Steer', 'Brake', 'Throttle', 
+            'Distance_Bicycle', 'Distance_Motorbike', 'Distance_SmallCar', 
+            'Location_X', 'Location_Y', 'Location_Z', 
+            'Rotation_Pitch', 'Rotation_Yaw', 'Rotation_Roll',
+            'Speed_kmh', 'Heading', 
+            'GNSS_Latitude', 'GNSS_Longitude', 'Height',
+            'Reverse', 'Hand_Brake', 'Manual', 'Gear', 
+            'Collision_History', 'Nearby_Vehicles_Count', 'Nearby_Vehicles_Details'
+        ]
+        self.df = pd.DataFrame(columns=self.cols)  
+        self.tick = 0  
+        self.clock = pygame.time.Clock() 
+        self.id = id 
 
+    def log_data(self, world, increment_tick=True):
+        import datetime
+        import math
 
-    def log_data(self, steerCmd, brakeCmd, throttleCmd, distance1, distance2,distance3,world, increment_tick=False):
         current_time = datetime.datetime.now()
+        formatted_time = current_time.strftime('%H:%M:%S:%f')[:-3]  # Format as HH:MM:SS:SSS
 
-        # Extract hours, minutes, seconds, and milliseconds
-        hours = current_time.strftime('%H')
-        minutes = current_time.strftime('%M')
-        seconds = current_time.strftime('%S')
-        milliseconds = current_time.microsecond // 1000  # Convert microseconds to milliseconds
-        
-        # Format the time as HH:MM:SS:SSS
-        formatted_time = f"{hours}:{minutes}:{seconds}:{milliseconds:03}"
-        t = world.player.get_transform()
-        location = t.location
-        rotation = t.rotation
+        player = world.player
+        player_loc = player.get_location()
+        transform = player.get_transform()
+        control = player.get_control()
+        velocity = player.get_velocity()
 
+        # Calculate speed and heading
+        speed_kmh = 3.6 * math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2)
+        heading = 'N' if abs(transform.rotation.yaw) < 89.5 else ''
+        heading += 'S' if abs(transform.rotation.yaw) > 90.5 else ''
+        heading += 'E' if 179.5 > transform.rotation.yaw > 0.5 else ''
+        heading += 'W' if -0.5 > transform.rotation.yaw > -179.5 else ''
 
-        new_data = {
+        # Initialize distances
+        distance1, distance2, distance3 = None, None, None
+
+        if world.scene:
+            # Scenario: Vehicles dynamically interact
+            bicycle_loc = world.bicycle.actor.get_location()
+            motorbike_loc = world.motorbike.actor.get_location()
+            smallcar_loc = world.smallcar.actor.get_location()
+
+            # Calculate distances
+            distance1 = math.sqrt(
+                (player_loc.x - bicycle_loc.x)**2 +
+                (player_loc.y - bicycle_loc.y)**2 +
+                (player_loc.z - bicycle_loc.z)**2
+            )
+            distance2 = math.sqrt(
+                (player_loc.x - motorbike_loc.x)**2 +
+                (player_loc.y - motorbike_loc.y)**2 +
+                (player_loc.z - motorbike_loc.z)**2
+            )
+            distance3 = math.sqrt(
+                (player_loc.x - smallcar_loc.x)**2 +
+                (player_loc.y - smallcar_loc.y)**2 +
+                (player_loc.z - smallcar_loc.z)**2
+            )
+        else:
+            # Scenario: Static vehicles
+            distance1 = math.sqrt((player_loc.x + 271.1)**2 + (player_loc.y - 37.1)**2 + (player_loc.z - 2)**2)
+            distance2 = math.sqrt((player_loc.x + 67.2)**2 + (player_loc.y - 37.3)**2 + (player_loc.z - 13)**2)
+            distance3 = math.sqrt((player_loc.x - 147.2)**2 + (player_loc.y - 38.6)**2 + (player_loc.z - 10)**2)
+
+        # Log data
+        log_entry = {
             'tick': self.tick,
             'time': formatted_time,
-            'steerCmd': steerCmd,
-            'brakeCmd': brakeCmd,
-            'throttleCmd': throttleCmd,
-            'distance1': distance1,
-            'distance2': distance2,
-            'distance3': distance3,
-            'Location_X': location.x,
-            'Location_Y': location.y,
-            'Location_Z': location.z,
-            'Rotation_Pitch': rotation.pitch,
-            'Rotation_Yaw': rotation.yaw,
-            'Rotation_Roll' :rotation.roll,
+            'Location_X': transform.location.x,
+            'Location_Y': transform.location.y,
+            'Location_Z': transform.location.z,
+            'Rotation_Pitch': transform.rotation.pitch,
+            'Rotation_Yaw': transform.rotation.yaw,
+            'Rotation_Roll': transform.rotation.roll,
+            'Speed_kmh': speed_kmh,
+            'Heading': heading,
+            'Throttle': control.throttle,
+            'Steer': control.steer,
+            'Brake': control.brake,
+            'Reverse': control.reverse,
+            'Hand_Brake': control.hand_brake,
+            'Manual': control.manual_gear_shift,
+            'Gear': {-1: 'R', 0: 'N'}.get(control.gear, control.gear),
+            'Distance_Bicycle': distance1,
+            'Distance_Motorbike': distance2,
+            'Distance_SmallCar': distance3,
         }
-        
-        # Add the new data to the DataFrame
-        self.df = pd.concat([self.df, pd.DataFrame([new_data])], ignore_index=True)
-        
-        # Increment tick if flag is raised
+
+        # Add to DataFrame
+        self.df = pd.concat([self.df, pd.DataFrame([log_entry])], ignore_index=True)
+
+        # Increment tick if needed
         if increment_tick:
             self.tick += 1
 
     def destroy(self):
         # Save the log to a CSV file before destroying
-        filename = self.id
+        filename = r'C:\Users\CARLA-1\Desktop\project\carla\WindowsNoEditor\PythonAPI\project_bicycle_carla\new_data_base\\' + self.id
         print("file name is ", filename)  # DONT DELETE - this line is cursed and will break the code in the third game loop
         if filename and isinstance(filename, str):
             filename = filename.strip() + ".csv"
@@ -1367,26 +1426,32 @@ def collect_user_id():
         nonlocal user_id, root
         user_id = entry_id.get()
         if user_id:
-            messagebox.showinfo("Welcome!", f"Hello {user_id}!\nStarting the CARLA simulation.")
             root.destroy()  # Close the GUI window
-        else:
-            messagebox.showwarning("Input Required", "Please enter your ID.")
     
     # Tkinter GUI setup
     root = tk.Tk()
     root.title("CARLA Simulator Info")
-    root.geometry("400x200")
+    # Get screen dimensions and center the window
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    window_width = 550
+    window_height = 250
+    x_offset = (screen_width - window_width) // 2
+    y_offset = (screen_height - window_height) // 2
+    root.geometry(f"{window_width}x{window_height}+{x_offset}+{y_offset}")
+
+    # root.geometry("550x250")
     # Add widgets
-    label_id = tk.Label(root, text="Enter your ID:", font=("Arial", 12))
+    label_id = tk.Label(root, text="Enter your ID:", font=("Arial", 15))
     label_id.pack(pady=10)
 
-    entry_id = tk.Entry(root, font=("Arial", 12))
+    entry_id = tk.Entry(root, font=("Arial", 15))
     entry_id.pack(pady=5)
 
-    info_label = tk.Label(root, text="Welcome to the CARLA simulator.\nDrive safely and enjoy!", font=("Arial", 10), wraplength=350, justify="center")
+    info_label = tk.Label(root, text="Welcome to the CARLA simulator.\nDrive safely and enjoy!", font=("Arial", 15), wraplength=350, justify="center")
     info_label.pack(pady=10)
 
-    submit_button = tk.Button(root, text="Submit", command=submit_info, font=("Arial", 12), bg="lightblue")
+    submit_button = tk.Button(root, text="Submit", command=submit_info, font=("Arial", 15), bg="lightblue")
     submit_button.pack(pady=10)
 
     # Run the Tkinter event loop
@@ -1403,7 +1468,6 @@ def collect_user_id():
 def instructions_gui(spawn):
     def close_gui(event=None):  # Add `event` parameter for key binding
         nonlocal root
-        messagebox.showinfo("Ready!", "Good luck with the next run!")
         root.destroy()  # Close the GUI window
 
     # Tkinter GUI setup
@@ -1412,7 +1476,16 @@ def instructions_gui(spawn):
         root.title("3nd Run Instructions")
     else:
         root.title("2nd Run Instructions")
-    root.geometry("400x200")
+    # Get screen dimensions and center the window
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    window_width = 550
+    window_height = 250
+    x_offset = (screen_width - window_width) // 2
+    y_offset = (screen_height - window_height) // 2
+    root.geometry(f"{window_width}x{window_height}+{x_offset}+{y_offset}")
+
+    # root.geometry("550x250")
 
     # Add widgets
     label_title = tk.Label(root, text="Get Ready!", font=("Arial", 14, "bold"))
@@ -1421,13 +1494,13 @@ def instructions_gui(spawn):
     info_label = tk.Label(
         root,
         text="For the next run, please focus on staying in your starting lane.\nPress the spacebar or click the button below to continue.",
-        font=("Arial", 10),
+        font=("Arial", 15),
         wraplength=350,
         justify="center"
     )
     info_label.pack(pady=10)
 
-    submit_button = tk.Button(root, text="Let's Go!", command=close_gui, font=("Arial", 12), bg="lightblue")
+    submit_button = tk.Button(root, text="Let's Go!", command=close_gui, font=("Arial", 15), bg="lightblue")
     submit_button.pack(pady=10)
 
     # Bind the spacebar key to the `close_gui` function

@@ -1,106 +1,95 @@
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
-import os
 
-# Define the filename
-filename = r'C:\Users\CARLA-1\Desktop\project\carla\WindowsNoEditor\PythonAPI\project_bicycle_carla\test_run_roee_B.csv'
+# Define the filename (modify as needed)
+filename = r'C:\Users\CARLA-1\Desktop\project\carla\WindowsNoEditor\PythonAPI\project_bicycle_carla\another one_A.csv' #for Lab
 
 # Check if the file exists
 if os.path.exists(filename):
     # Read the CSV file into a Pandas DataFrame
-    df = pd.read_csv(filename)
+    df_orig = pd.read_csv(filename)
+
+# Filter DataFrames based on distance thresholds
+df_distance_bicycle = df_orig[df_orig['Distance_Bicycle'] < 100]
+df_distance_motorbike = df_orig[df_orig['Distance_Motorbike'] < 100]
+df_distance_smallcar = df_orig[df_orig['Distance_SmallCar'] < 100]
+
+# List of DataFrames for processing
+df_list = [
+    (df_orig, "Run Results", ["Distance_Bicycle", "Distance_Motorbike", "Distance_SmallCar"]),
+    (df_distance_bicycle, "Bicycle", ["Distance_Bicycle"]),
+    (df_distance_motorbike, "MotorBike", ["Distance_Motorbike"]),
+    (df_distance_smallcar, "SmallCar", ["Distance_SmallCar"]),
+]
+
+# Loop through each DataFrame and create separate figures
+for idx, (df, title, distances) in enumerate(df_list, start=1):
+    # Plot commands in a separate figure
+    fig = plt.figure(figsize=(14, 7))
+    fig.canvas.manager.set_window_title(f"{title}: Commands")
+    plt.subplot(3, 1, 1)
+    plt.plot(df.index, df['Steer'], label='Steer Command', color='blue')
+    plt.xlabel('Index')
+    plt.ylabel('Steer Command')
+    plt.title(f"{title}: Steer Command Over Time")
+    plt.legend()
+    plt.grid(True)
+
+    plt.subplot(3, 1, 2)
+    plt.plot(df.index, df['Brake'], label='Brake Command', color='red')
+    plt.xlabel('Index')
+    plt.ylabel('Brake Command')
+    plt.title(f"{title}: Brake Command Over Time")
+    plt.legend()
+    plt.grid(True)
+
+    plt.subplot(3, 1, 3)
+    plt.plot(df.index, df['Throttle'], label='Throttle Command', color='green')
+    plt.xlabel('Index')
+    plt.ylabel('Throttle Command')
+    plt.title(f"{title}: Throttle Command Over Time")
+    plt.legend()
+    plt.grid(True)
+
+    plt.tight_layout()
+    plt.show(block=False)
 
 
-# Read the CSV file into a DataFrame
-# df = pd.read_csv(filename)
+    # Plot distances in a separate figure
+    fig = plt.figure(figsize=(14, len(distances) * 3))
+    fig.canvas.manager.set_window_title(f"{title}: Distances")
+    for i, distance in enumerate(distances, start=1):
+        plt.subplot(len(distances), 1, i)
+        plt.plot(df.index, df[distance], label=distance, color='black')
+        plt.xlabel('Index')
+        plt.ylabel(distance)
+        plt.title(f"{title}: {distance} Over Time")
+        plt.legend()
+        plt.grid(True)
 
-# # Merge each consecutive pair of rows
-# merged_rows = []
-
-# # Iterate through the rows in steps of 2
-# for i in range(0, len(df), 2):
-#     # Combine the two consecutive rowspip3 install 
-#     row1 = df.iloc[i]
-#     row2 = df.iloc[i + 1] if i + 1 < len(df) else None
-#     if row2 is not None:
-#         merged_row = row1.copy()
-#         # Average or combine the values as needed (this example just takes row1 for the values)
-#         merged_row['distance'] = (row1['distance'] + row2['distance']) / 2
-#         merged_rows.append(merged_row)
-
-# # Create a new DataFrame for the merged rows
-# merged_df = pd.DataFrame(merged_rows)
-
-# # Show the merged DataFrame
-# print(merged_df)
+    plt.tight_layout()
+    plt.show(block=False)
 
 
-# df = merged_df
+# Plot additional data in their own windows
+additional_data = [
+    ('Speed_kmh', 'Speed (km/h)', 'Speed (km/h)', 'purple'),
+    ('Heading', 'Heading', 'Heading', 'orange'),
+    ('Height', 'Height', 'Height (m)', 'brown'),
+    ('GNSS_Latitude', 'GNSS Latitude', 'Latitude', 'teal'),
+    ('GNSS_Longitude', 'GNSS Longitude', 'Longitude', 'cyan'),
+    ('Nearby_Vehicles_Count', 'Nearby Vehicles Count', 'Count', 'magenta'),
+]
 
-# Display the first few rows of the DataFrame
-print("Data Preview:")
-print(os.getcwd())
+for col, title, ylabel, color in additional_data:
+    fig = plt.figure(figsize=(14, 7))
+    fig.canvas.manager.set_window_title(title)
+    plt.plot(df_orig.index, df_orig[col], label=title, color=color)
+    plt.xlabel('Index')
+    plt.ylabel(ylabel)
+    plt.title(f"{title} Over Time")
+    plt.legend()
+    plt.grid(True)
+    plt.show(block=True)
 
-# Plot the data
-plt.figure(figsize=(14, 7))
-
-# Plot steerCmd
-plt.subplot(6, 1, 1)
-plt.plot(df.index, df['steerCmd'], label='Steer Command', color='blue')
-plt.xlabel('Index')
-plt.ylabel('Steer Command')
-plt.title('Steer Command Over Time')
-plt.legend()
-plt.grid(True)
-
-# Plot brakeCmd
-plt.subplot(6, 1, 2)
-plt.plot(df.index, df['brakeCmd'], label='Brake Command', color='red')
-plt.xlabel('Index')
-plt.ylabel('Brake Command')
-plt.title('Brake Command Over Time')
-plt.legend()
-plt.grid(True)
-
-# Plot throttleCmd
-plt.subplot(6, 1, 3)
-plt.plot(df.index, df['throttleCmd'], label='Throttle Command', color='green')
-plt.xlabel('Index')
-plt.ylabel('Throttle Command')
-plt.title('Throttle Command Over Time')
-plt.legend()
-plt.grid(True)
-
-# Plot distance
-plt.subplot(6, 1, 4)
-plt.plot(df.index, df['distance1'], label='distance1', color='black')
-plt.xlabel('Index')
-plt.ylabel('distance')
-plt.title('distance Over Time')
-plt.legend()
-plt.grid(True)
-
-# Plot distance
-plt.subplot(6, 1, 5)
-plt.plot(df.index, df['distance2'], label='distance2', color='gray')
-plt.xlabel('Index')
-plt.ylabel('distance')
-plt.title('distance Over Time')
-plt.legend()
-plt.grid(True)
-
-# Plot distance
-plt.subplot(6, 1, 6)
-plt.plot(df.index, df['distance3'], label='distance3', color='yellow')
-plt.xlabel('Index')
-plt.ylabel('distance')
-plt.title('distance Over Time')
-plt.legend()
-plt.grid(True)
-
-
-# Adjust layout
-plt.tight_layout()
-
-# Show the plot
-plt.show()
