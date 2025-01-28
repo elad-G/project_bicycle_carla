@@ -147,7 +147,7 @@ def generate_terminal_report(df, entity_name, entity_x, entity_y):
     print(f"Steering Variability (Standard Deviation): {steering_std:.2f}")
     print("=======================================\n")
 
-def plot_from_dataframes(df1, df2, x_col, y_col, labels=('Dataset 1', 'Dataset 2')):
+def plot_from_dataframes(df1, df2, x_col, y_col,title="", labels=('Dataset 1', 'Dataset 2')):
     """
     Plot data from two DataFrames on a single graph.
 
@@ -172,7 +172,7 @@ def plot_from_dataframes(df1, df2, x_col, y_col, labels=('Dataset 1', 'Dataset 2
     # Adding labels and title
     plt.xlabel(x_col)
     plt.ylabel(y_col)
-    plt.title(f'Comparison of {labels[0]} and {labels[1]}')
+    plt.title(title)
 
     # Adding grid and legend
     plt.grid(True)
@@ -181,70 +181,27 @@ def plot_from_dataframes(df1, df2, x_col, y_col, labels=('Dataset 1', 'Dataset 2
     plt.tight_layout()
     # plt.show(block=False)
 
-def plot_from_dataframes_zoomed(df1, df2, x_col, y_col, filter_col, filter_range, labels=('Dataset 1', 'Dataset 2')):
-    """
-    Plot data from two DataFrames on a single graph, with the x-axis zoomed 
-    to where a given column's values fall within a specified range.
-
-    Parameters:
-    df1 (DataFrame): The first DataFrame.
-    df2 (DataFrame): The second DataFrame.
-    x_col (str): The column name for the x-axis.
-    y_col (str): The column name for the y-axis.
-    filter_col (str): The column used to determine the zoom range.
-    filter_range (tuple): A tuple specifying the range (min, max) for filtering.
-    labels (tuple): Labels for the datasets (default: ('Dataset 1', 'Dataset 2')).
-
-    Returns:
-    None
-    """
-    # Filter DataFrames based on the range in filter_col
-    filtered_df1 = df1[(df1[filter_col] >= filter_range[0]) & (df1[filter_col] <= filter_range[1])]
-    filtered_df2 = df2[(df2[filter_col] >= filter_range[0]) & (df2[filter_col] <= filter_range[1])]
-    time_min_distance_A = df1['Distance_Bicycle'].min()
+def plot_2_graphs_from_dataframe(df1, x_col, y_col_1,y_col_2,title="",y_col_1_label='label_1', y_col_2_label='label_2' ):
     plt.figure(figsize=(10, 6))
-    time_min_distance_A = df1[df1['Distance_Bicycle'].min()]
-    tick_min_distance_A = df1['Distance_Bicycle'].min()
+    # Plot data from the first DataFrame
+    plt.plot(df1[x_col], df1[y_col_1], label=y_col_1_label, marker='o')
 
-
-    # Plot data from the filtered DataFrames
-    plt.plot(filtered_df1[x_col], filtered_df1[y_col], label=labels[0], marker='o')
-    plt.plot(filtered_df2[x_col], filtered_df2[y_col], label=labels[1], marker='x')
+    # Plot data from the second DataFrame
+    plt.plot(df1[x_col], df1[y_col_2], label=y_col_2_label, marker='x')
 
     # Adding labels and title
     plt.xlabel(x_col)
-    plt.ylabel(y_col)
-    plt.title(f'Zoomed Comparison of {labels[0]} and {labels[1]}')
+    plt.ylabel(y_col_1_label+" and "+y_col_2_label)
+    plt.title(title)
 
     # Adding grid and legend
     plt.grid(True)
     plt.legend()
-
-    # Display the plot
+# 
     plt.tight_layout()
     # plt.show(block=False)
 
-
-import matplotlib.pyplot as plt
-
-def plot_from_dataframes_zoomed_with_min_line(df1, df2, x_col, y_col, filter_col, filter_range, labels=('Dataset 1', 'Dataset 2')):
-    """
-    Plot data from two DataFrames on a single graph, with the x-axis zoomed 
-    to where a given column's values fall within a specified range, and add 
-    a vertical line at the minimum value of the x-axis for the filtered DataFrames.
-
-    Parameters:
-    df1 (DataFrame): The first DataFrame.
-    df2 (DataFrame): The second DataFrame.
-    x_col (str): The column name for the x-axis.
-    y_col (str): The column name for the y-axis.
-    filter_col (str): The column used to determine the zoom range.
-    filter_range (tuple): A tuple specifying the range (min, max) for filtering.
-    labels (tuple): Labels for the datasets (default: ('Dataset 1', 'Dataset 2')).
-
-    Returns:
-    None
-    """
+def plot_from_dataframes_zoomed_with_min_line(df1, df2, x_col, y_col, filter_col, filter_range,title='title', labels=('Dataset 1', 'Dataset 2')):
     # Filter DataFrames based on the range in filter_col
     filtered_df1 = df1[(df1[filter_col] >= filter_range[0]) & (df1[filter_col] <= filter_range[1])]
     filtered_df2 = df2[(df2[filter_col] >= filter_range[0]) & (df2[filter_col] <= filter_range[1])]
@@ -269,7 +226,7 @@ def plot_from_dataframes_zoomed_with_min_line(df1, df2, x_col, y_col, filter_col
     # Adding labels, title, and legend
     plt.xlabel(x_col)
     plt.ylabel(y_col)
-    plt.title('Filtered Data Comparison with Minimum Value Lines')
+    plt.title(title)
     plt.grid(True)
     plt.legend()
 
@@ -295,13 +252,34 @@ def main():
     add_accumulative_time_delta_column(control_df, 'time', new_column_name='Time_Delta_ms')
     add_accumulative_time_delta_column(distraction_df, 'time', new_column_name='Time_Delta_ms')
 
-    plot_from_dataframes(control_df, distraction_df, 'Time_Delta_ms', 'Steer', labels=('A', 'B'))
 
-    plot_from_dataframes(control_df, distraction_df, 'tick', 'Steer', labels=('A', 'B'))
+    # # plot steer command
+    # plot_from_dataframes(control_df, distraction_df, 'Time_Delta_ms', 'Steer',"steer command over time", labels=('A', 'B'))
+    # plot_from_dataframes(control_df, distraction_df, 'tick', 'Steer',"steer command over ticks", labels=('A', 'B'))
 
-    plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'Time_Delta_ms',  'Steer', 'Distance_Bicycle', (0,50), labels=('A', 'B'))
+    # # plot ditance from bicycle
+    # plot_from_dataframes(control_df, distraction_df, 'Time_Delta_ms', 'Distance_Bicycle',"Distance_Bicycle command over time", labels=('A', 'B'))
+    # plot_from_dataframes(control_df, distraction_df, 'tick', 'Distance_Bicycle',"Distance_Bicycle command over ticks", labels=('A', 'B'))
 
-    plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'tick',  'Steer', 'Distance_Bicycle', (0,50), labels=('A', 'B'))
+    # # plot ditance from motorbike
+    # plot_from_dataframes(control_df, distraction_df, 'Time_Delta_ms', 'Distance_Motorbike',"Distance_Motorbike command over time", labels=('A', 'B'))
+    # plot_from_dataframes(control_df, distraction_df, 'tick', 'Distance_Motorbike',"Distance_Motorbike command over ticks", labels=('A', 'B'))
+    # # plot ditance from small car
+    # plot_from_dataframes(control_df, distraction_df, 'Time_Delta_ms', 'Distance_SmallCar',"Distance_SmallCar command over time", labels=('A', 'B'))
+    # plot_from_dataframes(control_df, distraction_df, 'tick', 'Distance_SmallCar', "Distance_SmallCar command over ticks",labels=('A', 'B'))
+
+    # # plot steer command zoomed
+    # plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'Time_Delta_ms',  'Steer', 'Distance_Bicycle', (0,50),'Zoomed Comparison steer over Time', labels=('A', 'B'))
+    # plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'tick',  'Steer', 'Distance_Bicycle', (0,50),'Zoomed Comparison steer over Ticks', labels=('A', 'B'))
+    
+    # # plot yaw command zoomed
+    # plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'Time_Delta_ms',  'Rotation_Yaw', 'Distance_Bicycle', (0,50),'Zoomed Comparison Rotation_Yaw over Time', labels=('A', 'B'))
+    # plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'tick',  'Rotation_Yaw', 'Distance_Bicycle', (0,50),'Zoomed Comparison Rotation_Yaw over Ticks', labels=('A', 'B'))
+    
+    plot_2_graphs_from_dataframe(control_df, 'Time_Delta_ms', 'Steer','Rotation_Yaw',title="steer and yaw control",y_col_1_label='Steer', y_col_2_label='Rotation_Yaw' )
+
+
+    
     plt.show()
 
 if __name__ == "__main__":
