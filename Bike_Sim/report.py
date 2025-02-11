@@ -33,104 +33,104 @@ def add_accumulative_time_delta_column(df, time_column, new_column_name='Accumul
     return df
 
 
-# # Function to calculate lateral deviation
-# def calculate_deviation(df, entity_x, entity_y):
-#     """Calculate the lateral deviation of the vehicle from a fixed entity location."""
-#     df['Deviation'] = np.sqrt((df['Location_X'] - entity_x)**2 + (df['Location_Y'] - entity_y)**2)
-#     return df
+# Function to calculate lateral deviation
+def calculate_deviation(df, entity_x, entity_y):
+    """Calculate the lateral deviation of the vehicle from a fixed entity location."""
+    df['Deviation'] = np.sqrt((df['Location_X'] - entity_x)**2 + (df['Location_Y'] - entity_y)**2)
+    return df
 
-# # Function to create unified graph display
-# def create_combined_graphs(graphs, title):
-#     """Display multiple graphs in subplots within a single figure."""
-#     fig, axes = plt.subplots(len(graphs), 1, figsize=(12, len(graphs) * 4))
-#     fig.suptitle(title, fontsize=16)
+# Function to create unified graph display
+def create_combined_graphs(graphs, title):
+    """Display multiple graphs in subplots within a single figure."""
+    fig, axes = plt.subplots(len(graphs), 1, figsize=(12, len(graphs) * 4))
+    fig.suptitle(title, fontsize=16)
 
-#     for ax, graph in zip(axes, graphs):
-#         label = graph['label']
-#         data = graph['data']
-#         x_label = graph['x_label']
-#         y_label = graph['y_label']
+    for ax, graph in zip(axes, graphs):
+        label = graph['label']
+        data = graph['data']
+        x_label = graph['x_label']
+        y_label = graph['y_label']
 
-#         ax.plot(data['x'], data['y'], label=label)
-#         ax.set_title(label)
-#         ax.set_xlabel(x_label)
-#         ax.set_ylabel(y_label)
-#         ax.legend()
-#         ax.grid()
+        ax.plot(data['x'], data['y'], label=label)
+        ax.set_title(label)
+        ax.set_xlabel(x_label)
+        ax.set_ylabel(y_label)
+        ax.legend()
+        ax.grid()
 
-#     plt.tight_layout(rect=[0, 0, 1, 0.96])  # Leave space for the title
-#     plt.show()
+    plt.tight_layout(rect=[0, 0, 1, 0.96])  # Leave space for the title
+    plt.show()
 
-# # Generalized analysis function
-# def analyze_entity(df, entity_name, entity_x, entity_y, time_column):
-#     """Generalized function for analyzing entities and creating graphs."""
-#     df = calculate_deviation(df, entity_x, entity_y)
-#     return {
-#         'label': f'Lateral Deviation from {entity_name}',
-#         'data': {'x': df[time_column], 'y': df['Deviation']},
-#         'x_label': time_column.capitalize(),
-#         'y_label': 'Deviation (meters)'
-#     }
+# Generalized analysis function
+def analyze_entity(df, entity_name, entity_x, entity_y, time_column):
+    """Generalized function for analyzing entities and creating graphs."""
+    df = calculate_deviation(df, entity_x, entity_y)
+    return {
+        'label': f'Lateral Deviation from {entity_name}',
+        'data': {'x': df[time_column], 'y': df['Deviation']},
+        'x_label': time_column.capitalize(),
+        'y_label': 'Deviation (meters)'
+    }
 
-# # Steering analysis
-# def analyze_steering(df, time_column):
-#     """Analyze steering behavior."""
-#     return {
-#         'label': 'Steering Behavior Over Time',
-#         'data': {'x': df[time_column], 'y': df['Steer']},
-#         'x_label': time_column.capitalize(),
-#         'y_label': 'Steering Angle'
-#     }
+# Steering analysis
+def analyze_steering(df, time_column):
+    """Analyze steering behavior."""
+    return {
+        'label': 'Steering Behavior Over Time',
+        'data': {'x': df[time_column], 'y': df['Steer']},
+        'x_label': time_column.capitalize(),
+        'y_label': 'Steering Angle'
+    }
 
-# # Proximity analysis
-# def analyze_proximity(df, time_column):
-#     """Analyze proximity to other entities."""
-#     return [
-#         {
-#             'label': 'Distance to Bicycle',
-#             'data': {'x': df[time_column], 'y': df['Distance_Bicycle']},
-#             'x_label': time_column.capitalize(),
-#             'y_label': 'Distance (meters)'
-#         },
-#         {
-#             'label': 'Distance to Motorbike',
-#             'data': {'x': df[time_column], 'y': df['Distance_Motorbike']},
-#             'x_label': time_column.capitalize(),
-#             'y_label': 'Distance (meters)'
-#         },
-#         {
-#             'label': 'Distance to SmallCar',
-#             'data': {'x': df[time_column], 'y': df['Distance_SmallCar']},
-#             'x_label': time_column.capitalize(),
-#             'y_label': 'Distance (meters)'
-#         }
-#     ]
+# Proximity analysis
+def analyze_proximity(df, time_column):
+    """Analyze proximity to other entities."""
+    return [
+        {
+            'label': 'Distance to Bicycle',
+            'data': {'x': df[time_column], 'y': df['Distance_Bicycle']},
+            'x_label': time_column.capitalize(),
+            'y_label': 'Distance (meters)'
+        },
+        {
+            'label': 'Distance to Motorbike',
+            'data': {'x': df[time_column], 'y': df['Distance_Motorbike']},
+            'x_label': time_column.capitalize(),
+            'y_label': 'Distance (meters)'
+        },
+        {
+            'label': 'Distance to SmallCar',
+            'data': {'x': df[time_column], 'y': df['Distance_SmallCar']},
+            'x_label': time_column.capitalize(),
+            'y_label': 'Distance (meters)'
+        }
+    ]
 
-# # Comparison between control and distraction runs
-# def compare_runs(control_df, distraction_df, time_column):
-#     """Compare control and distraction runs."""
-#     comparisons = []
-#     metrics = ['Steer', 'Distance_Bicycle', 'Distance_Motorbike', 'Distance_SmallCar']
-#     for metric in metrics:
-#         comparisons.append({
-#             'label': f'Control Run: {metric}',
-#             'data': {
-#                 'x': control_df[time_column],
-#                 'y': control_df[metric]
-#             },
-#             'x_label': time_column.capitalize(),
-#             'y_label': metric
-#         })
-#         comparisons.append({
-#             'label': f'Distraction Run: {metric}',
-#             'data': {
-#                 'x': distraction_df[time_column],
-#                 'y': distraction_df[metric]
-#             },
-#             'x_label': time_column.capitalize(),
-#             'y_label': metric
-#         })
-#     return comparisons
+# Comparison between control and distraction runs
+def compare_runs(control_df, distraction_df, time_column):
+    """Compare control and distraction runs."""
+    comparisons = []
+    metrics = ['Steer', 'Distance_Bicycle', 'Distance_Motorbike', 'Distance_SmallCar']
+    for metric in metrics:
+        comparisons.append({
+            'label': f'Control Run: {metric}',
+            'data': {
+                'x': control_df[time_column],
+                'y': control_df[metric]
+            },
+            'x_label': time_column.capitalize(),
+            'y_label': metric
+        })
+        comparisons.append({
+            'label': f'Distraction Run: {metric}',
+            'data': {
+                'x': distraction_df[time_column],
+                'y': distraction_df[metric]
+            },
+            'x_label': time_column.capitalize(),
+            'y_label': metric
+        })
+    return comparisons
 
 # Terminal report
 def generate_terminal_report(df, entity_name, entity_x, entity_y):
@@ -237,8 +237,8 @@ def plot_from_dataframes_zoomed_with_min_line(df1, df2, x_col, y_col, filter_col
 # Main function
 def main():
     # Load the CSV files
-    control_file = r'/Users/aliza/project_bicycle_carla/new_data_base/roee_run_A.csv'
-    distraction_file = r'/Users/aliza/project_bicycle_carla/new_data_base/roee_run_B.csv'
+    control_file = r'C:\Users\CARLA-1\Desktop\project\carla\WindowsNoEditor\PythonAPI\project_bicycle_carla\new_data_base\testttttttty_A.csv'
+    distraction_file = r'C:\Users\CARLA-1\Desktop\project\carla\WindowsNoEditor\PythonAPI\project_bicycle_carla\new_data_base\testttttttty_B.csv'
 
     try:
         control_df = pd.read_csv(control_file)
@@ -268,13 +268,13 @@ def main():
     # plot_from_dataframes(control_df, distraction_df, 'Time_Delta_ms', 'Distance_SmallCar',"Distance_SmallCar command over time", labels=('A', 'B'))
     # plot_from_dataframes(control_df, distraction_df, 'tick', 'Distance_SmallCar', "Distance_SmallCar command over ticks",labels=('A', 'B'))
 
-    # # plot steer command zoomed
-    # plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'Time_Delta_ms',  'Steer', 'Distance_Bicycle', (0,50),'Zoomed Comparison steer over Time', labels=('A', 'B'))
-    # plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'tick',  'Steer', 'Distance_Bicycle', (0,50),'Zoomed Comparison steer over Ticks', labels=('A', 'B'))
+    # plot steer command zoomed
+    plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'Time_Delta_ms',  'Steer', 'Distance_Bicycle', (0,50),'Zoomed Comparison steer over Time', labels=('A', 'B'))
+    plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'tick',  'Steer', 'Distance_Bicycle', (0,50),'Zoomed Comparison steer over Ticks', labels=('A', 'B'))
     
-    # # plot yaw command zoomed
-    # plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'Time_Delta_ms',  'Rotation_Yaw', 'Distance_Bicycle', (0,50),'Zoomed Comparison Rotation_Yaw over Time', labels=('A', 'B'))
-    # plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'tick',  'Rotation_Yaw', 'Distance_Bicycle', (0,50),'Zoomed Comparison Rotation_Yaw over Ticks', labels=('A', 'B'))
+    # plot yaw command zoomed
+    plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'Time_Delta_ms',  'Rotation_Yaw', 'Distance_Bicycle', (0,50),'Zoomed Comparison Rotation_Yaw over Time', labels=('A', 'B'))
+    plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'tick',  'Rotation_Yaw', 'Distance_Bicycle', (0,50),'Zoomed Comparison Rotation_Yaw over Ticks', labels=('A', 'B'))
     
     plot_2_graphs_from_dataframe(control_df, 'Time_Delta_ms', 'Steer','Rotation_Yaw',title="steer and yaw control",y_col_1_label='Steer', y_col_2_label='Rotation_Yaw' )
 

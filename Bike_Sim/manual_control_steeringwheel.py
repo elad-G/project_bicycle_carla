@@ -11,11 +11,14 @@
 """
 Welcome to CARLA manual control with steering wheel Logitech G29.
 
-To drive start by preshing the brake pedal.
+To drive start by pressing the brake pedal.
 Change your wheel_config.ini according to your steering wheel.
 
 To find out the values of your steering wheel use jstest-gtk in Ubuntu.
 """
+# ==============================================================================
+# -- imports -------------------------------------------------------------------
+# ==============================================================================
 
 from __future__ import print_function
 import csv
@@ -25,34 +28,9 @@ import os
 import time
 import tkinter as tk
 from tkinter import messagebox
-
-
-# ==============================================================================
-# -- find carla module ---------------------------------------------------------
-# ==============================================================================
-
 import glob
 import os
 import sys
-
-try:
-    sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
-        sys.version_info.major,
-        sys.version_info.minor,
-        'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
-except IndexError:
-    pass
-
-
-# ==============================================================================
-# -- imports -------------------------------------------------------------------
-# ==============================================================================
-
-
-import carla
-
-from carla import ColorConverter as cc
-
 import argparse
 import collections
 import datetime
@@ -63,6 +41,19 @@ import re
 import weakref
 import pandas as pd
 
+
+# ==============================================================================
+# -- find carla module ---------------------------------------------------------
+# ==============================================================================
+try:
+    sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
+        sys.version_info.major,
+        sys.version_info.minor,
+        'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
+except IndexError:
+    pass
+import carla
+from carla import ColorConverter as cc
 
 if sys.version_info >= (3, 0):
 
@@ -127,53 +118,80 @@ def get_actor_display_name(actor, truncate=250):
     return (name[:truncate - 1] + u'\u2026') if len(name) > truncate else name
 
 
-"""
-directions of figure 8:
-town  - south, mountain nort
-under the bridge  - south to north 
-over the bridge - east to west
-
-start point coordinates:
-south (-19.5, -226.8)
-
-
-finish point:
-
-"""
-
-
 # ==============================================================================
-# -- BicycleRider Class -------------------------------------------------------
+# -- NonPlayableVehicle Class -------------------------------------------------------
 # ==============================================================================
-class BicycleRider:
-    def __init__(self, world, traffic_manager, spawn_point):
-        print("BicycleRider init")
+"""
+    A class representing a non-playable vehicle in the CARLA simulator.
+
+    This class allows for spawning, configuring, and controlling AI-driven 
+    vehicles that are not controlled by the player. These vehicles can be used 
+    for traffic simulation and autonomous movement.
+
+    Attributes:
+        world (carla.World): The CARLA world instance where the vehicle exists.
+        traffic_manager (carla.TrafficManager): Manages vehicle behaviors like speed and lane changes.
+        spawn_point (carla.Transform): The location where the vehicle should spawn.
+        actor (carla.Actor or None): The spawned vehicle actor.
+        blueprint_name (str): The identifier for the vehicle blueprint (default: 'vehicle.diamondback.century').
+        color (str): The color of the vehicle in RGB format (default: '255, 234, 0').
+    """
+
+class NonPlayableVehicle:
+    def __init__(self, world, traffic_manager, spawn_point,blueprint_name='vehicle.diamondback.century',color='255, 234, 0',):
+        """
+        Initializes the NonPlayableVehicle instance.
+
+        Args:
+            world (carla.World): The CARLA world where the vehicle will be spawned.
+            traffic_manager (carla.TrafficManager): The traffic manager that controls AI behavior.
+            spawn_point (carla.Transform): The location where the vehicle should be spawned.
+            blueprint_name (str, optional): The blueprint ID of the vehicle. Defaults to 'vehicle.diamondback.century'.
+            color (str, optional): The vehicle's color in RGB format. Defaults to '255, 234, 0'.
+        """
+        print("NonPlayableVehicle init")
         self.world = world
         self.traffic_manager = traffic_manager
         self.spawn_point = spawn_point
         self.actor = None
-        self.spawn_bicycle()
+        self.blueprint_name = blueprint_name
+        self.color = color
+        self.spawn_NonPlayableVehicle()
 
-    def spawn_bicycle(self):
-        """Spawn the bicycle and configure its behavior."""
-        # Define the blueprint for a bicycle
-        blueprint = self.world.get_blueprint_library().find('vehicle.diamondback.century')
+    def spawn_NonPlayableVehicle(self):
+        """
+        Spawns the NonPlayableVehicle in the CARLA world.
+
+        Retrieves the vehicle blueprint and attempts to spawn the vehicle at the specified location.
+        If successful, the vehicle's behavior is configured.
+
+        Raises:
+            RuntimeError: If the specified vehicle blueprint is not found.
+        """
+        # Define the blueprint for a NonPlayableVehicle
+        blueprint = self.world.get_blueprint_library().find(self.blueprint_name)
         if not blueprint:
-            raise RuntimeError('Bicycle blueprint not found!')
+            raise RuntimeError('NonPlayableVehicle blueprint not found!')
         
         # Set attributes like color
-        blueprint.set_attribute('color', '255, 234, 0')
+        blueprint.set_attribute('color', self.color)
 
-        # Spawn the bicycle at the specified location
+        # Spawn the NonPlayableVehicle at the specified location
         self.actor = self.world.try_spawn_actor(blueprint, self.spawn_point)
         if self.actor:
-            print(f"Bicycle spawned with ID: {self.actor.id}")
+            print(f"NonPlayableVehicle spawned with ID: {self.actor.id}")
             self.configure_behavior()
         else:
-            print("Failed to spawn bicycle.")
+            print("Failed to spawn NonPlayableVehicle.")
 
     def configure_behavior(self,change_lane=False,speed_percentage=100):
-        """Configure traffic manager behavior for the bicycle."""
+        """
+        Configures the traffic behavior of the NonPlayableVehicle.
+
+        Args:
+            change_lane (bool, optional): Determines whether the vehicle can change lanes. Defaults to False.
+            speed_percentage (int, optional): Speed adjustment as a percentage of default speed. Defaults to 100.
+        """
         if not self.actor:
             print("No actor to configure.")
             return
@@ -187,180 +205,38 @@ class BicycleRider:
         self.actor.set_autopilot(True, self.traffic_manager.get_port())
 
     def set_target_velocity(self, velocity):
-        """Set a custom target velocity for the bicycle."""
+        """
+        Sets a custom target velocity for the NonPlayableVehicle.
+
+        Args:
+            velocity (float): Desired velocity in meters per second (m/s).
+        """
         if self.actor:
             self.actor.set_target_velocity(carla.Vector3D(x=velocity, y=0.0, z=0.0))
-            #print(f"Bicycle velocity set to {velocity} m/s.")
+            #print(f"NonPlayableVehicle velocity set to {velocity} m/s.")
 
     def get_location(self):
-        """Get the current location of the bicycle."""
+        """
+        Retrieves the current location of the NonPlayableVehicle.
+
+        Returns:
+            carla.Location or None: The vehicle's location if spawned, otherwise None.
+        """
         if self.actor:
             return self.actor.get_location()
         return None
 
     def destroy(self):
+        """
+        Destroys the NonPlayableVehicle actor if it exists.
+
+        Ensures proper cleanup of the vehicle when it is no longer needed.
+        """
+
         """Destroy the actor."""
-        print("Destroying bicycle.")
+        print("Destroying NonPlayableVehicle.")
         if self.actor:
-            print(f"Destroying bicycle with ID: {self.actor.id}")
-            self.actor.destroy()
-            self.actor = None
-
-
-# ==============================================================================
-# -- MotorbikeRider Class -------------------------------------------------------
-# ==============================================================================
-class MotorbikeRider:
-    def __init__(self, world, traffic_manager, spawn_point):
-        print("MotorbikeRider init")
-        self.world = world
-        self.traffic_manager = traffic_manager
-        self.spawn_point = spawn_point
-        self.actor = None
-        self.spawn_motorbike()
-
-    def spawn_motorbike(self):
-        """Spawn the motorbike and configure its behavior."""
-        # Define the blueprint for a motorbike
-        blueprint = self.world.get_blueprint_library().find('vehicle.kawasaki.ninja')
-        if not blueprint:
-            raise RuntimeError('Motorbike blueprint not found!')
-        
-        # Set attributes like color if applicable
-        blueprint.set_attribute('color', '255, 0, 0')  # Example color setting
-
-        # Spawn the motorbike at the specified location
-        self.actor = self.world.try_spawn_actor(blueprint, self.spawn_point)
-        if self.actor:
-            print(f"Motorbike spawned with ID: {self.actor.id}")
-            self.configure_behavior()
-        else:
-            print("Failed to spawn motorbike.")
-
-    def configure_behavior(self,change_lane=False,speed_percentage=100):
-        """Configure traffic manager behavior for the motorbike."""
-        if not self.actor:
-            print("No actor to configure.")
-            return
-
-        # Disable lane changes
-        self.traffic_manager.auto_lane_change(self.actor, change_lane)
-
-        # Set a speed limit (e.g., 20% below default speed)
-        self.traffic_manager.vehicle_percentage_speed_difference(self.actor, speed_percentage)
-
-        # Enable autopilot and configure behavior
-        self.actor.set_autopilot(True, self.traffic_manager.get_port())
-        #print(f"Motorbike {self.actor.id} configured with autopilot and custom behavior.")
-
-    def set_target_velocity(self, velocity):
-        """Set a custom target velocity for the motorbike."""
-        if self.actor:
-            self.actor.set_target_velocity(carla.Vector3D(x=velocity, y=0.0, z=0.0))
-            #print(f"Motorbike velocity set to {velocity} m/s.")
-
-    def set_heading(self, yaw):
-        """Set the heading (yaw) of the motorbike."""
-        if not self.actor:
-            print("No actor to set heading.")
-            return
-
-        # Get current transform and update yaw
-        transform = self.actor.get_transform()
-        transform.rotation.yaw = yaw  # Set the yaw (heading) in degrees
-        self.actor.set_transform(transform)
-        print(f"Motorbike heading set to {yaw} degrees.")
-
-    def get_location(self):
-        """Get the current location of the motorbike."""
-        if self.actor:
-            return self.actor.get_location()
-        return None
-
-    def destroy(self):
-        """Destroy the actor."""
-        print("Destroying motorbike.")
-        if self.actor:
-            print(f"Destroying motorbike with ID: {self.actor.id}")
-            self.actor.destroy()
-            self.actor = None
-
-
-# ==============================================================================
-# -- SmallCar Class -------------------------------------------------------
-# ==============================================================================
-class SmallCar:
-    def __init__(self, world, traffic_manager, spawn_point):
-        print("SmallCar init")
-        self.world = world
-        self.traffic_manager = traffic_manager
-        self.spawn_point = spawn_point
-        self.actor = None
-        self.spawn_smallcar()
-
-    def spawn_smallcar(self):
-        """Spawn the SmallCar and configure its behavior."""
-        # Define the blueprint for a SmallCar
-        blueprint = self.world.get_blueprint_library().find('vehicle.micro.microlino')
-        if not blueprint:
-            raise RuntimeError('SmallCar blueprint not found!')
-        
-        # Set attributes like color if applicable
-        blueprint.set_attribute('color', '0, 255, 0')  # Example color setting
-
-        # Spawn the SmallCar at the specified location
-        self.actor = self.world.try_spawn_actor(blueprint, self.spawn_point)
-        if self.actor:
-            print(f"SmallCar spawned with ID: {self.actor.id}")
-            self.configure_behavior()
-        else:
-            print("Failed to spawn SmallCar.")
-
-    def configure_behavior(self,change_lane=False,speed_percentage=100):
-        """Configure traffic manager behavior for the SmallCar."""
-        if not self.actor:
-            print("No actor to configure.")
-            return
-
-        # Disable lane changes
-        self.traffic_manager.auto_lane_change(self.actor, change_lane)
-
-        # Set a speed limit (e.g., 20% below default speed)
-        self.traffic_manager.vehicle_percentage_speed_difference(self.actor, speed_percentage)
-
-        # Enable autopilot and configure behavior
-        self.actor.set_autopilot(True, self.traffic_manager.get_port())
-        #print(f"SmallCar {self.actor.id} configured with autopilot and custom behavior.")
-
-    def set_target_velocity(self, velocity):
-        """Set a custom target velocity for the motorbike."""
-        if self.actor:
-            self.actor.set_target_velocity(carla.Vector3D(x=velocity, y=0.0, z=0.0))
-            #print(f"SmallCar velocity set to {velocity} m/s.")
-
-    def set_heading(self, yaw):
-        """Set the heading (yaw) of the SmallCar."""
-        if not self.actor:
-            print("No actor to set heading.")
-            return
-
-        # Get current transform and update yaw
-        transform = self.actor.get_transform()
-        transform.rotation.yaw = yaw  # Set the yaw (heading) in degrees
-        self.actor.set_transform(transform)
-        print(f"SmallCar heading set to {yaw} degrees.")
-
-    def get_location(self):
-        """Get the current location of the SmallCar."""
-        if self.actor:
-            return self.actor.get_location()
-        return None
-
-    def destroy(self):
-        """Destroy the actor."""
-        print("Destroying SmallCar.")
-        if self.actor:
-            print(f"Destroying SmallCar with ID: {self.actor.id}")
+            print(f"Destroying NonPlayableVehicle with ID: {self.actor.id}")
             self.actor.destroy()
             self.actor = None
 
@@ -370,7 +246,49 @@ class SmallCar:
 
 
 class World(object):
+    """ 
+    Represents the CARLA simulation world, managing the environment, vehicles, 
+    sensors, and weather conditions.
+
+    This class handles:
+    - Spawning and managing the player vehicle.
+    - Spawning non-playable vehicles such as bicycles, motorbikes, and small cars.
+    - Configuring sensors like collision, lane invasion, GNSS, and cameras.
+    - Weather control and simulation updates.
+
+    Attributes:
+        world (carla.World): The CARLA simulation world.
+        client (carla.Client): Client instance to interact with the CARLA server.
+        traffic_manager (carla.TrafficManager): Manages traffic behaviors.
+        hud (HUD): Heads-up display for in-game information.
+        player (carla.Actor or None): The player-controlled vehicle.
+        bicycle (NonPlayableVehicle or None): AI-controlled bicycle instance.
+        motorbike (NonPlayableVehicle or None): AI-controlled motorbike instance.
+        smallcar (NonPlayableVehicle or None): AI-controlled small car instance.
+        collision_sensor (CollisionSensor or None): Detects collisions.
+        lane_invasion_sensor (LaneInvasionSensor or None): Detects lane invasions.
+        gnss_sensor (GnssSensor or None): Retrieves GPS coordinates.
+        camera_manager (CameraManager or None): Manages cameras for the player.
+        _weather_presets (list): Available weather presets in CARLA.
+        _weather_index (int): Index of the current weather preset.
+        _actor_filter (str): Filter for selecting vehicle blueprints.
+        scene (bool): Determines whether additional non-playable vehicles are spawned.
+        log (Log): Handles logging of simulation data.
+    """
+
     def __init__(self, carla_world, hud, actor_filter,log,client,scene):
+        """
+        Initializes the CARLA world instance.
+
+        Args:
+            carla_world (carla.World): The CARLA simulation world.
+            hud (HUD): HUD instance for displaying information.
+            actor_filter (str): Filter for selecting player vehicle blueprint.
+            log (Log): Logging instance for tracking simulation data.
+            client (carla.Client): CARLA client for communication with the server.
+            scene (bool): If True, spawns additional AI vehicles (bicycle, motorbike, small car).
+        """
+
         print("World init")
         self.world = carla_world
         self.client = client
@@ -391,13 +309,16 @@ class World(object):
         self.restart()
         self.world.on_tick(hud.on_world_tick)
         self.log = log
-        
-
-        #south (-19.5, -226.8)
-
-
 
     def restart(self):
+        """
+        Resets and reinitializes the world.
+
+        - Spawns the player vehicle based on the provided actor filter.
+        - Spawns AI vehicles if `scene` is enabled.
+        - Configures sensors (collision, lane invasion, GNSS, and cameras).
+        - Sets the initial weather conditions.
+        """
         # Keep same camera config if the camera manager exists.
         cam_index = self.camera_manager.index if self.camera_manager is not None else 0
         cam_pos_index = self.camera_manager.transform_index if self.camera_manager is not None else 0
@@ -417,36 +338,27 @@ class World(object):
                 self.bicycle.destroy()
                 self.bicycle.actor = self.world.try_spawn_actor(blueprint, spawn_point_bicycle)
             while self.bicycle is None:
-                # spawn_points = self.world.get_map().get_spawn_points()
                 spawn_point_bicycle = carla.Transform(carla.Location(x=-271.1, y=37.1, z=2),carla.Rotation(yaw=0))
-                self.bicycle = BicycleRider(self.world,self.traffic_manager, spawn_point_bicycle)
-
+                self.bicycle = NonPlayableVehicle(self.world,self.traffic_manager, spawn_point_bicycle)
             #spwan motorbike rider
             if self.motorbike is not None:
-                # spawn_point = self.motorbike.get_transform()
                 spawn_point_motorbike = carla.Transform(carla.Location(x=-67.2, y=37.3, z=13),carla.Rotation(yaw=0))
                 spawn_point_motorbike.location.z = self.world.get_map().get_spawn_points()[0].location.z
                 self.motorbike.destroy()
                 self.motorbike.actor = self.world.try_spawn_actor(blueprint, spawn_point_motorbike)
             while self.motorbike is None:
-                # spawn_points = self.world.get_map().get_spawn_points()
                 spawn_point_motorbike = carla.Transform(carla.Location(x=-67.2, y=37.3, z=13),carla.Rotation(yaw=0))
-                self.motorbike = MotorbikeRider(self.world,self.traffic_manager, spawn_point_motorbike)
-
-
+                self.motorbike = NonPlayableVehicle(self.world,self.traffic_manager, spawn_point_motorbike,blueprint_name='vehicle.kawasaki.ninja',color='255, 0, 0')
             #spwan smallcar rider
             if self.smallcar is not None:
-                # spawn_point = self.motorbike.get_transform()
                 spawn_point_smallcar = carla.Transform(carla.Location(x=147.2, y=38.6, z=10),carla.Rotation(yaw=0))
                 spawn_point_smallcar.location.z = self.world.get_map().get_spawn_points()[0].location.z
                 self.smallcar.destroy()
                 self.smallcar.actor = self.world.try_spawn_actor(blueprint, spawn_point_smallcar)
             while self.smallcar is None:
-                # spawn_points = self.world.get_map().get_spawn_points()
                 spawn_point_smallcar = carla.Transform(carla.Location(x=147.2, y=38.6, z=10),carla.Rotation(yaw=0))
-                self.smallcar = SmallCar(self.world,self.traffic_manager, spawn_point_smallcar)
-
-
+                self.smallcar = NonPlayableVehicle(self.world,self.traffic_manager, spawn_point_smallcar,blueprint_name='vehicle.micro.microlino',color='0, 255, 0')
+    
         # Spawn the player.
         if self.player is not None:
             spawn_point = self.player.get_transform()
@@ -457,7 +369,6 @@ class World(object):
             self.destroy()
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
         while self.player is None:
-            # spawn_points = self.world.get_map().get_spawn_points()
             spawn_point = carla.Transform(carla.Location(x=-433.9, y=34.9, z=2),carla.Rotation(yaw=0))
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
         # Set up the sensors.
@@ -475,6 +386,13 @@ class World(object):
 
 
     def next_weather(self, reverse=False):
+        """
+        Changes the weather preset to the next or previous one.
+
+        Args:
+            reverse (bool, optional): If True, switches to the previous weather preset. Defaults to False.
+        """
+
         self._weather_index += -1 if reverse else 1
         self._weather_index %= len(self._weather_presets)
         preset = self._weather_presets[self._weather_index]
@@ -483,6 +401,13 @@ class World(object):
 
 
     def tick(self, clock):
+        """
+        Updates the world state on each simulation tick.
+
+        Args:
+            clock (pygame.time.Clock): The clock instance for frame timing.
+        """
+
         self.hud.tick(self, clock)
         player_loc =self.player.get_location()
         if self.scene:
@@ -501,40 +426,7 @@ class World(object):
                 self.smallcar.set_target_velocity(0)
             else:
                 self.smallcar.configure_behavior(change_lane=True,speed_percentage=100)
-
         self.log.log_data(world = self, increment_tick = True)
-        # control = self.player.get_control()
-        # steerCmd = control.steer
-        # brakeCmd = control.brake
-        # throttleCmd = control.throttle
-        # if self.scene:
-        #     t = self.player.get_transform()
-        #     vehicles = self.world.get_actors().filter('vehicle.*')
-        #     distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
-        #     vehicles = [(distance(x.get_location()), x) for x in vehicles if x.id != self.player.id]
-        #     # new_steer_cmd = map_steering_input_to_degrees(steerCmd) #### swap arg with json func for wheel
-        #     self.log.log_data(steerCmd=steerCmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=vehicles[0][0],
-        #                        distance2=vehicles[1][0],distance3=vehicles[2][0],world = self, increment_tick = True)
-        # else:
-        #     # bicycle location:
-        #     x=-271.1
-        #     y=37.1
-        #     z=2
-        #     distance1 = math.sqrt((x - player_loc.x)**2 + (y - player_loc.y)**2 + (z - player_loc.z)**2)
-        #     # motorbike location:
-        #     x=-67.2
-        #     y=37.3
-        #     z=13
-        #     distance2 = math.sqrt((x - player_loc.x)**2 + (y - player_loc.y)**2 + (z - player_loc.z)**2)
-        #     # smallcar location:
-        #     x=147.2
-        #     y=38.6
-        #     z=10
-
-        #     distance3 = math.sqrt((x - player_loc.x)**2 + (y - player_loc.y)**2 + (z - player_loc.z)**2)
-        #     self.log.log_data(steerCmd=steerCmd, brakeCmd=brakeCmd, throttleCmd=throttleCmd, distance1=distance1, distance2=distance2,
-        #                       distance3=distance3,world = self, increment_tick = True)
-
 
     def render(self, display):
         self.camera_manager.render(display)
@@ -542,6 +434,9 @@ class World(object):
         
 
     def destroy(self):
+        """
+        Destroys all actors and sensors in the world.
+        """
         print("Destroying world")
         if self.log is not None:
             print("trying to destroy log")
@@ -603,7 +498,6 @@ class DualControl(object):
 
             self._parser = ConfigParser()
             self._parser.read(r'C:\Users\CARLA-1\Desktop\project\carla\WindowsNoEditor\PythonAPI\examples\wheel_config.ini')
-            # print("sections: ",self._parser.sections())
             self._steer_idx = int(
                 self._parser.get('G920 Racing Wheel', 'steering_wheel'))
             self._throttle_idx = int(
@@ -691,48 +585,38 @@ class DualControl(object):
             self._steer_cache -= steer_increment
         elif keys[K_RIGHT] or keys[K_d]:
             self._steer_cache += steer_increment
-            # print(" self._steer_cache = " + str( self._steer_cache))
-
         else:
             self._steer_cache = 0.0
         self._steer_cache = min(0.7, max(-0.7, self._steer_cache))
-        # print("self._steer_cache = " + str(min(0.7, max(-0.7, self._steer_cache))))
-
         self._control.steer = round(self._steer_cache, 1)
-        # print("self._control.steer = " + str(self._control.steer))
         self._control.brake = 1.0 if keys[K_DOWN] or keys[K_s] else 0.0
         self._control.hand_brake = keys[K_SPACE]
 
     def _parse_vehicle_wheel(self,v,world):
         numAxes = self._joystick.get_numaxes()
         jsInputs = [float(self._joystick.get_axis(i)) for i in range(numAxes)]
-        # print (jsInputs)
         jsButtons = [float(self._joystick.get_button(i)) for i in
                      range(self._joystick.get_numbuttons())]
-        # print (jsButtons)
 
         # Custom function to map range of inputs [1, -1] to outputs [0, 1] i.e 1 from inputs means nothing is pressed
         # For the steering, it seems fine as it is
-        K1 =  3 # orig = 1 TODO steering coefficient, decide optimum
+        K1 =  3 # orig = 1
         steerCmd = K1 * math.tan(1.1 * jsInputs[self._steer_idx])
-        # print(jsInputs[self._steer_idx])
-        K2 = 1.6  # orig =  1.6 - TODO throttle shift value
+        K2 = 1.6  # orig =  1.6 
         throttleCmd = K2 + (2.05 * math.log10(
             -0.7 * jsInputs[self._throttle_idx] + 1.4) - 1.2) / 0.92
 
         speed = (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2))
-        if throttleCmd <= 0 or speed > 80: # change speed limit
+        if throttleCmd <= 0 or speed > 80: # speed limit
             throttleCmd = 0
         elif throttleCmd > 1:
             throttleCmd = 1
-        # K3 = 1 #orig = 0.7 break shift
         brakeCmd = 1.6 + (2.05 * math.log10(
             -0.7 * jsInputs[self._brake_idx] + 1.4) - 1.2) / 0.92 
         if brakeCmd <= 0:
             brakeCmd = 0
         elif brakeCmd > 1:
             brakeCmd = 1
-
         self._control.steer = steerCmd
         self._control.brake = brakeCmd
         self._control.throttle = throttleCmd
@@ -849,8 +733,6 @@ class HUD(object):
             distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
             vehicles = [(distance(x.get_location()), x) for x in vehicles if x.id != world.player.id]
             for d, vehicle in sorted(vehicles):
-                # if d > 200.0:
-                #     break
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
                 self._info_text.append('% 4dm %s' % (d, vehicle_type))
 
@@ -865,7 +747,7 @@ class HUD(object):
         self._notifications.set_text('Error: %s' % text, (255, 0, 0))
 
     def render(self, display):
-            # Use a system font that resembles a digital font (e.g., "consolas" or "courier new")
+        # Use a system font that resembles a digital font (e.g., "consolas" or "courier new")
         self._font_digital = pygame.font.SysFont("consolas", 48, bold=True)  # Set size to 48 and bold text
 
         # Create the speed text
@@ -876,44 +758,6 @@ class HUD(object):
         # Draw the text on the screen
         display.blit(surface, text_rect)
     
-    # def render(self, display):
-    #     if self._show_info:
-    #         info_surface = pygame.Surface((220, self.dim[1]))
-    #         info_surface.set_alpha(100)
-    #         display.blit(info_surface, (0, 0))
-    #         v_offset = 4
-    #         bar_h_offset = 100
-    #         bar_width = 106
-    #         for item in self._info_text:
-    #             if v_offset + 18 > self.dim[1]:
-    #                 break
-    #             if isinstance(item, list):
-    #                 if len(item) > 1:
-    #                     points = [(x + 8, v_offset + 8 + (1.0 - y) * 30) for x, y in enumerate(item)]
-    #                     pygame.draw.lines(display, (255, 136, 0), False, points, 2)
-    #                 item = None
-    #                 v_offset += 18
-    #             elif isinstance(item, tuple):
-    #                 if isinstance(item[1], bool):
-    #                     rect = pygame.Rect((bar_h_offset, v_offset + 8), (6, 6))
-    #                     pygame.draw.rect(display, (255, 255, 255), rect, 0 if item[1] else 1)
-    #                 else:
-    #                     rect_border = pygame.Rect((bar_h_offset, v_offset + 8), (bar_width, 6))
-    #                     pygame.draw.rect(display, (255, 255, 255), rect_border, 1)
-    #                     f = (item[1] - item[2]) / (item[3] - item[2])
-    #                     if item[2] < 0.0:
-    #                         rect = pygame.Rect((bar_h_offset + f * (bar_width - 6), v_offset + 8), (6, 6))
-    #                     else:
-    #                         rect = pygame.Rect((bar_h_offset, v_offset + 8), (f * bar_width, 6))
-    #                     pygame.draw.rect(display, (255, 255, 255), rect)
-    #                 item = item[0]
-    #             if item:  # At this point has to be a str.
-    #                 surface = self._font_mono.render(item, True, (255, 255, 255))
-    #                 display.blit(surface, (8, v_offset))
-    #             v_offset += 18
-    #     self._notifications.render(display)
-    #     self.help.render(display)
-
 
 # ==============================================================================
 # -- FadingText ----------------------------------------------------------------
@@ -1263,15 +1107,6 @@ class CameraManager(object):
 # ==============================================================================
 
 class Log:
-    # def __init__(self,id):
-    #     print("Log initialized")
-    #     # Initialize the log with an empty DataFrame and columns
-    #     self.cols = ['tick','time', 'steerCmd', 'brakeCmd', 'throttleCmd', 'distance1', 'distance2','distanc3', 'Location_X', 'Location_Y', 'Location_Z', 
-    #                      'Rotation_Pitch', 'Rotation_Yaw', 'Rotation_Roll']
-    #     self.df = pd.DataFrame(columns=self.cols)  # DataFrame with specific columns
-    #     self.tick = 0  # Set the initial tick to 0
-    #     self.clock = pygame.time.Clock()
-    #     self.id = id
     def __init__(self, id):
         print("Log initialized")
         # Initialize the log with an empty DataFrame
@@ -1392,22 +1227,6 @@ class Log:
         print("Log destroyed")
 
 
-    # Log telemetry data (call this inside the game loop on each tick)
-    def log_telemetry(writer, vehicle):
-        # Get vehicle control and heading data
-        control = vehicle.get_control()
-        transform = vehicle.get_transform()
-        heading = transform.rotation.yaw
-
-        # Write current data to CSV
-        writer.writerow({
-            'timestamp': time.time(),
-            'steerCmd': control.steer,
-            'brakeCmd': control.brake,
-            'throttleCmd': control.throttle,
-            'Heading': heading
-        })
-
 def map_steering_input_to_degrees(x):
     # Ensure x is between -1 and 1
     if x < -1 or x > 1:
@@ -1440,7 +1259,6 @@ def collect_user_id():
     y_offset = (screen_height - window_height) // 2
     root.geometry(f"{window_width}x{window_height}+{x_offset}+{y_offset}")
 
-    # root.geometry("550x250")
     # Add widgets
     label_id = tk.Label(root, text="Enter your ID:", font=("Arial", 15))
     label_id.pack(pady=10)
@@ -1485,8 +1303,6 @@ def instructions_gui(spawn):
     y_offset = (screen_height - window_height) // 2
     root.geometry(f"{window_width}x{window_height}+{x_offset}+{y_offset}")
 
-    # root.geometry("550x250")
-
     # Add widgets
     label_title = tk.Label(root, text="Get Ready!", font=("Arial", 14, "bold"))
     label_title.pack(pady=10)
@@ -1519,57 +1335,31 @@ def game_loop(args,id,spawn):
     pygame.init()
     pygame.font.init()
     world = None
-    
-
-
     try:
         client = carla.Client(args.host, args.port)
         client.set_timeout(10.0)
-        # print(client.get_available_maps())
-
         display = pygame.display.set_mode(
             (args.width, args.height),
             pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.RESIZABLE)
-
         hud = HUD(args.width, args.height)
         log = Log(id)
-
         world = World(client.get_world(), hud, args.filter, log,client,spawn)
         controller = DualControl(world, args.autopilot,writer)
-
-        # world = client.load_world('Town04')
         clock = pygame.time.Clock()
         
         while True:
-            
             clock.tick_busy_loop(60)
             v = world.player.get_velocity()
             if controller.parse_events(world, clock,v):
                 pygame.quit()
                 return
             world.tick(clock)
-            
-        ###################################################################################################################### 
-            # vehicle_t = world.player
-            # # Calculate distance to other vehicles
-            # vehicles = world.world.get_actors().filter('vehicle.*')
-            # if len(vehicles) > 1:
-            #     distance_func = lambda l: math.sqrt((l.x - transform.location.x)**2 + (l.y - transform.location.y)**2 + (l.z - transform.location.z)**2)
-            #     nearby_vehicles = [(distance_func(v.get_location()), v) for v in vehicles if v.id != vehicle.id]
-            #     nearest_distance = sorted(nearby_vehicles)[0][0] if nearby_vehicles else 0
-            # else:
-            #     nearest_distance = 0
-            # log_telemetry(writer, vehicle_t)
-        #######################################################################################################################
-        
             world.render(display)
             pygame.display.flip()
 
     finally:
-        print("fianllyllylylylylyl")
         if world is not None:
             world.destroy()
-        print("trying to quit pygame")
         pygame.quit()
 
 
@@ -1621,13 +1411,11 @@ def main():
     args = argparser.parse_args()
 
     args.width, args.height = [int(x) for x in args.res.split('x')]
-    # print(args.res.split('x'))
 
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(format='%(levelname)s: %(message)s', level=log_level)
 
     logging.info('listening to server %s:%s', args.host, args.port)
-
     print(__doc__)
 
     try:
@@ -1642,8 +1430,6 @@ def main():
         id_new = id + "_B"
         game_loop(args,id_new,spawn=True)
         print('third game id :',id)
-
-
 
     except KeyboardInterrupt:
         print('\nCancelled by user. Bye!')

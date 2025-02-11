@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import os
 
 # Define the filename
-# filename = r'C:\Users\CARLA-1\Desktop\project\carla\WindowsNoEditor\PythonAPI\project_bicycle_carla\654654.csv' #for Lab
-filename = r'/Users/aliza/project_bicycle_carla/new_data_base/roee_run_B.csv' # for Elad's env
+filename = r'C:\Users\CARLA-1\Desktop\project\carla\WindowsNoEditor\PythonAPI\project_bicycle_carla\new_data_base\deeeeeeelte_B.csv' #for Lab
+# filename = r'/Users/aliza/project_bicycle_carla/new_data_base/roee_run_B.csv' # for Elad's env
 # Check if the file exists
 # Check if the file exists
 if os.path.exists(filename):
