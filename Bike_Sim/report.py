@@ -58,7 +58,7 @@ def create_combined_graphs(graphs, title):
         ax.legend()
         ax.grid()
 
-    plt.tight_layout(rect=[0, 0, 1, 0.96])  # Leave space for the title
+    plt.tight_layout(rect=[0, 0, 1, 0.96])  # Leave/÷ / space for the title
     plt.show()
 
 # Generalized analysis function
@@ -147,98 +147,35 @@ def generate_terminal_report(df, entity_name, entity_x, entity_y):
     print(f"Steering Variability (Standard Deviation): {steering_std:.2f}")
     print("=======================================\n")
 
-def plot_from_dataframes(df1, df2, x_col, y_col,title="", labels=('Dataset 1', 'Dataset 2')):
-    """
-    Plot data from two DataFrames on a single graph.
 
-    Parameters:
-    df1 (DataFrame): The first DataFrame.
-    df2 (DataFrame): The second DataFrame.
-    x_col (str): The column name for the x-axis.
-    y_col (str): The column name for the y-axis.
-    labels (tuple): Labels for the datasets (default: ('Dataset 1', 'Dataset 2')).
 
-    Returns:
-    None
-    """
-    plt.figure(figsize=(10, 6))
 
-    # Plot data from the first DataFrame
-    plt.plot(df1[x_col], df1[y_col], label=labels[0], marker='o')
 
-    # Plot data from the second DataFrame
-    plt.plot(df2[x_col], df2[y_col], label=labels[1], marker='x')
 
-    # Adding labels and title
-    plt.xlabel(x_col)
-    plt.ylabel(y_col)
+
+def plott(df,x_1_col,X_2_col,y_1_col,title = "no title"):
+    fig2, ax12 = plt.subplots()
+    ax12.plot(df[x_1_col], df[y_1_col], marker='o', linestyle='-', color='orange', label="Main Y Data")
+    ax12.set_xlabel(x_1_col)
+    ax12.set_ylabel('y', color='orange')
+    ax12.tick_params(axis='y', labelcolor='orange')
+    ax22 = ax12.twiny()    # Create secondary X-axis
+    ax22.set_xlim(ax12.get_xlim())  # Match the X-axis limits
+    x_ticks = ax12.get_xticks()    # Get the tick positions of the bottom X-axis
+    x_ticks_interpolation = np.interp(x_ticks, df[x_1_col], df[X_2_col])    # Interpolate corresponding Time_Delta_ms values
+    ax22.set_xticks(x_ticks)    # Apply the interpolated values as labels
+    ax22.set_xticklabels(x_ticks_interpolation.astype(int), rotation=30, ha='center')
+    ax22.set_xlabel(X_2_col)
+    ax12.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)
     plt.title(title)
 
-    # Adding grid and legend
-    plt.grid(True)
-    plt.legend()
-# 
-    plt.tight_layout()
-    # plt.show(block=False)
 
-def plot_2_graphs_from_dataframe(df1, x_col, y_col_1,y_col_2,title="",y_col_1_label='label_1', y_col_2_label='label_2' ):
-    plt.figure(figsize=(10, 6))
-    # Plot data from the first DataFrame
-    plt.plot(df1[x_col], df1[y_col_1], label=y_col_1_label, marker='o')
-
-    # Plot data from the second DataFrame
-    plt.plot(df1[x_col], df1[y_col_2], label=y_col_2_label, marker='x')
-
-    # Adding labels and title
-    plt.xlabel(x_col)
-    plt.ylabel(y_col_1_label+" and "+y_col_2_label)
-    plt.title(title)
-
-    # Adding grid and legend
-    plt.grid(True)
-    plt.legend()
-# 
-    plt.tight_layout()
-    # plt.show(block=False)
-
-def plot_from_dataframes_zoomed_with_min_line(df1, df2, x_col, y_col, filter_col, filter_range,title='title', labels=('Dataset 1', 'Dataset 2')):
-    # Filter DataFrames based on the range in filter_col
-    filtered_df1 = df1[(df1[filter_col] >= filter_range[0]) & (df1[filter_col] <= filter_range[1])]
-    filtered_df2 = df2[(df2[filter_col] >= filter_range[0]) & (df2[filter_col] <= filter_range[1])]
-
-    # Determine the minimum x value from the filtered DataFrames
-    idx_min_x1 = filtered_df1[filter_col].idxmin()  if not filtered_df1.empty else None
-    idx_min_x2 = filtered_df2[filter_col].idxmin()  if not filtered_df2.empty else None
-    min_x1 = filtered_df1.loc[idx_min_x1, x_col]
-    min_x2 = filtered_df2.loc[idx_min_x2, x_col]
-
-    # Plot data from the filtered DataFrames
-    plt.figure(figsize=(10, 6))
-    plt.plot(filtered_df1[x_col], filtered_df1[y_col], label=f'Filtered {labels[0]}', marker='o')
-    plt.plot(filtered_df2[x_col], filtered_df2[y_col], label=f'Filtered {labels[1]}', marker='x')
-
-    # Add vertical lines for the minimum x values
-    if min_x1 is not None:
-        plt.axvline(x=min_x1, color='red', linestyle='--', label=f'Min {labels[0]}: {min_x1}')
-    if min_x2 is not None:
-        plt.axvline(x=min_x2, color='blue', linestyle='--', label=f'Min {labels[1]}: {min_x2}')
-
-    # Adding labels, title, and legend
-    plt.xlabel(x_col)
-    plt.ylabel(y_col)
-    plt.title(title)
-    plt.grid(True)
-    plt.legend()
-
-    # Display the plot
-    plt.tight_layout()
-    # plt.show()
 
 # Main function
 def main():
     # Load the CSV files
-    control_file = r'C:\Users\CARLA-1\Desktop\project\carla\WindowsNoEditor\PythonAPI\project_bicycle_carla\new_data_base\testttttttty_A.csv'
-    distraction_file = r'C:\Users\CARLA-1\Desktop\project\carla\WindowsNoEditor\PythonAPI\project_bicycle_carla\new_data_base\testttttttty_B.csv'
+    control_file = r'/Users/aliza/project_bicycle_carla/new_data_base/roee_run_A.csv'
+    distraction_file = r'/Users/aliza/project_bicycle_carla/new_data_base/roee_run_B.csv'
 
     try:
         control_df = pd.read_csv(control_file)
@@ -252,10 +189,85 @@ def main():
     add_accumulative_time_delta_column(control_df, 'time', new_column_name='Time_Delta_ms')
     add_accumulative_time_delta_column(distraction_df, 'time', new_column_name='Time_Delta_ms')
 
+    # create accumulative x axis.
+    df = control_df
+    df['neg_steer'] = -df['Steer']    
+    df['Location_X_tmp'] = df['Location_X'].diff()
+    df['Location_X_tmp'] = df['Location_X_tmp'].fillna(0)
+    df['x_axis'] = df['Location_X_tmp'].cumsum()
+    df = df.drop(columns=['Location_X_tmp'])
+    control_df = df
+    df = distraction_df
+    df['neg_steer'] = -df['Steer']    
+    df['Location_X_tmp'] = df['Location_X'].diff()
+    df['Location_X_tmp'] = df['Location_X_tmp'].fillna(0)
+    df['x_axis'] = df['Location_X_tmp'].cumsum()
+    df = df.drop(columns=['Location_X_tmp'])
+    distraction_df = df
 
-    # # plot steer command
-    # plot_from_dataframes(control_df, distraction_df, 'Time_Delta_ms', 'Steer',"steer command over time", labels=('A', 'B'))
-    # plot_from_dataframes(control_df, distraction_df, 'tick', 'Steer',"steer command over ticks", labels=('A', 'B'))
+    spawn_point_bicycle_x = -271.1
+    spawn_point_motorbike_x = -67.2
+    spawn_point_smallcar_x = 147.2
+    spawn_point_bicycle_y = 37.1
+    spawn_point_motorbike_y = 37.3
+    spawn_point_smallcar_y = 38.6
+
+    distraction_df['y_delta_bicycle'] = spawn_point_bicycle_y - distraction_df['Location_Y']
+    distraction_df['y_delta_motorbike'] = spawn_point_motorbike_y - distraction_df['Location_Y']
+    distraction_df['y_delta_smallcar'] = spawn_point_smallcar_y - distraction_df['Location_Y']
+    control_df['y_delta_bicycle'] = spawn_point_bicycle_y - control_df['Location_Y']
+    control_df['y_delta_motorbike'] = spawn_point_motorbike_y - control_df['Location_Y']
+    control_df['y_delta_smallcar'] = spawn_point_smallcar_y - control_df['Location_Y']
+
+
+    df_smallcar_distraction = distraction_df[(distraction_df['Distance_SmallCar'] >= -100) & (distraction_df['Distance_SmallCar'] <= 100)]
+    df_bicycle_distraction = distraction_df[(distraction_df['Distance_Bicycle'] >= -100) & (distraction_df['Distance_Bicycle'] <= 100)]
+    df_Motorbike_distraction= distraction_df[(distraction_df['Distance_Motorbike'] >= -100) & (distraction_df['Distance_Motorbike'] <= 100)]
+    df_smallcar_control = control_df[(control_df['Distance_SmallCar'] >= -100) & (control_df['Distance_SmallCar'] <= 100)]
+    df_bicycle_control = control_df[(control_df['Distance_Bicycle'] >= -100) & (control_df['Distance_Bicycle'] <= 100)]
+    df_Motorbike_control = control_df[(control_df['Distance_Motorbike'] >= -100) & (control_df['Distance_Motorbike'] <= 100)]
+
+    # cenrlize distance cols:
+    min_index = df_smallcar_distraction['Distance_SmallCar'].idxmin()
+    df_smallcar_distraction.loc[:min_index-1, 'Distance_SmallCar'] *= -1
+    min_index = df_bicycle_distraction['Distance_Bicycle'].idxmin()
+    df_bicycle_distraction.loc[:min_index-1, 'Distance_Bicycle'] *= -1
+    min_index = df_Motorbike_distraction['Distance_Motorbike'].idxmin()
+    df_Motorbike_distraction.loc[:min_index-1, 'Distance_Motorbike'] *= -1
+    min_index = df_smallcar_control['Distance_SmallCar'].idxmin()
+    df_smallcar_control.loc[:min_index-1, 'Distance_SmallCar'] *= -1
+    min_index = df_bicycle_control['Distance_Bicycle'].idxmin()
+    df_bicycle_control.loc[:min_index-1, 'Distance_Bicycle'] *= -1
+    min_index = df_Motorbike_control['Distance_Motorbike'].idxmin()
+    df_Motorbike_control.loc[:min_index-1, 'Distance_Motorbike'] *= -1
+
+    
+
+
+    plott(distraction_df,'x_axis','Time_Delta_ms','neg_steer','Fig 1: test run neg_steer over x axis and time')
+    #plott(df_bicycle_distraction,'x_axis','Time_Delta_ms','y_delta_bicycle','Fig 2: y_delta_bicycle over location and time')
+    #plott(df_Motorbike_distraction,'x_axis','Time_Delta_ms','y_delta_motorbike','Fig 555: y_delta_motorbike over location and time')
+
+    # for presantation:
+
+    ########  small car   ##########
+    # steer overtime
+    plott(df_smallcar_distraction,'Time_Delta_ms','Distance_SmallCar','neg_steer','Fig 3 :smallcar_distraction steer over Distance_SmallCar and time')
+    plott(df_smallcar_control,'Time_Delta_ms','Distance_SmallCar','neg_steer','Fig 3 :smallcar_control steer over Distance_SmallCar and time')
+
+    ########  Bicycle   ##########
+    # steer overtime
+    plott(df_bicycle_distraction,'Time_Delta_ms','Distance_Bicycle','neg_steer','Fig 4 :bicycle_distraction steer over Distance_SmallCar and time')
+    plott(df_bicycle_control,'Time_Delta_ms','Distance_Bicycle','neg_steer','Fig 4 :bicycle_control steer over Distance_SmallCar and time')
+
+    ########  Motorbike   ##########
+    # steer overtime
+    plott(df_Motorbike_distraction,'Time_Delta_ms','Distance_Motorbike','neg_steer','Fig 5 :Motorbike_distraction steer over Distance_SmallCar and time')
+    plott(df_Motorbike_control,'Time_Delta_ms','Distance_Motorbike','neg_steer','Fig 5 : Motorbike_control steer over Distance_SmallCar and time')
+
+
+
+    #plot_from_dataframes(control_df, distraction_df, 'Time_Delta_ms', 'Steer',"steer command over time", labels=('A', 'B'))
 
     # # plot ditance from bicycle
     # plot_from_dataframes(control_df, distraction_df, 'Time_Delta_ms', 'Distance_Bicycle',"Distance_Bicycle command over time", labels=('A', 'B'))
@@ -268,18 +280,27 @@ def main():
     # plot_from_dataframes(control_df, distraction_df, 'Time_Delta_ms', 'Distance_SmallCar',"Distance_SmallCar command over time", labels=('A', 'B'))
     # plot_from_dataframes(control_df, distraction_df, 'tick', 'Distance_SmallCar', "Distance_SmallCar command over ticks",labels=('A', 'B'))
 
-    # plot steer command zoomed
-    plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'Time_Delta_ms',  'Steer', 'Distance_Bicycle', (0,50),'Zoomed Comparison steer over Time', labels=('A', 'B'))
-    plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'tick',  'Steer', 'Distance_Bicycle', (0,50),'Zoomed Comparison steer over Ticks', labels=('A', 'B'))
+    # # plot steer command zoomed
+    # plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'Time_Delta_ms',  'Steer', 'Distance_Bicycle', (0,50),'Zoomed Comparison steer over Time', labels=('A', 'B'))
+    # plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'tick',  'Steer', 'Distance_Bicycle', (0,50),'Zoomed Comparison steer over Ticks', labels=('A', 'B'))
     
-    # plot yaw command zoomed
-    plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'Time_Delta_ms',  'Rotation_Yaw', 'Distance_Bicycle', (0,50),'Zoomed Comparison Rotation_Yaw over Time', labels=('A', 'B'))
-    plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'tick',  'Rotation_Yaw', 'Distance_Bicycle', (0,50),'Zoomed Comparison Rotation_Yaw over Ticks', labels=('A', 'B'))
+    # # plot yaw command zoomed
+    # plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'Time_Delta_ms',  'Rotation_Yaw', 'Distance_Bicycle', (0,50),'Zoomed Comparison Rotation_Yaw over Time', labels=('A', 'B'))
+    # plot_from_dataframes_zoomed_with_min_line(control_df, distraction_df, 'tick',  'Rotation_Yaw', 'Distance_Bicycle', (0,50),'Zoomed Comparison Rotation_Yaw over Ticks', labels=('A', 'B'))
     
-    plot_2_graphs_from_dataframe(control_df, 'Time_Delta_ms', 'Steer','Rotation_Yaw',title="steer and yaw control",y_col_1_label='Steer', y_col_2_label='Rotation_Yaw' )
+    # plot_2_graphs_from_dataframe(control_df, 'Time_Delta_ms', 'Steer','Rotation_Yaw',title="steer and yaw control",y_col_1_label='Steer', y_col_2_label='Rotation_Yaw' )
 
+    # plot_2_graphs_from_dataframe(control_df, 'Time_Delta_ms', 'Steer','Rotation_Yaw',title="steer and yaw control",y_col_1_label='Steer', y_col_2_label='Rotation_Yaw' )
+    # plot_2_graphs_with_dual_axes(control_df, 'Time_Delta_ms', 'Steer', 'Rotation_Yaw', title="steer and yaw control with dual axess",y_col_1_label='Steer', y_col_2_label='Rotation_Yaw')
+    # plot_2_graphs_with_dual_axes(control_df, 'Time_Delta_ms', 'Steer', 'Rotation_Yaw', title="steer and yaw control with dual axess",y_col_1_label='Steer', y_col_2_label='Rotation_Yaw')
+    #plot_2_graphs_with_scaled_axes(control_df, 'Time_Delta_ms', 'Steer','Rotation_Yaw', 'Distance_Bicycle', (-100,100), title="steer and yaw control with dual axess Zoomed", y_col_1_label='Steer', y_col_2_label='Rotation_Yaw')
+    # §plot_2_graphs_with_scaled_axes(control_df, 'Distance_Bicycle', 'Steer','Rotation_Yaw', 'Distance_Bicycle', (-100,100), title="steer and yaw control with dual axess Zoomed", y_col_1_label='Steer', y_col_2_label='Rotation_Yaw')
 
     
+
+    #bicycle_df = control_df[(control_df['Distance_Bicycle'] >= -100) & (df1['Distance_Bicycle'] <= 100)]
+    #plot_2_graphs_with_scaled_axes(bicycle_df, 'Time_Delta_ms', 'Steer','Rotation_Yaw', 'Distance_Bicycle', (-100,100), title="steer and yaw control with dual axess Zoomed", y_col_1_label='Steer', y_col_2_label='Rotation_Yaw')
+
     plt.show()
 
 if __name__ == "__main__":
